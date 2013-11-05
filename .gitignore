@@ -3,6 +3,9 @@
 # C extensions
 # *.so
 
+# Settings
+local.settings.py
+
 # Packages
 *.egg
 *.egg-info
