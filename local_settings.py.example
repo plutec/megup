@@ -1,0 +1,6 @@
+
+#Maybe a ini file, better?
+local_settings = {
+	'mega_mail':'username',
+	'mega_passw':'password'	
+}
