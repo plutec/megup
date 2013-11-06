@@ -1,25 +1,3 @@
-"""
-import rsync
-import mega
-
-#https://github.com/richardasaurus/mega.py
-mega = mega.Mega({'verbose':True})
-
-m = mega.login(email='asanchez@plutec.net',password='sdfasdfasdf)
-
-details = m.get_user()
-
-
-#print details
-# specify unit output kilo, mega, gig, else bytes will output
-space = m.get_storage_space(giga=True)
-
-#print space
-
-folder = m.find('syncpy')
-#m.upload('test_files/1.pdf', folder[0])
-
-"""
 import settings
 import mega as mega_library
 
@@ -70,6 +48,6 @@ class UploaderMega(object):
 
 	
 
-u = UploaderMega()
-u.exists_dir('syncpy')
+#u = UploaderMega()
+#u.exists_dir('syncpy')
 #print u.free_space()
