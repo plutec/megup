@@ -12,7 +12,6 @@ from .errors import ValidationError, RequestError
 from .crypto import *
 import tempfile
 
-
 class Mega(object):
     def __init__(self, options=None):
         self.schema = 'https'
@@ -102,7 +101,6 @@ class Mega(object):
         #ensure input data is a list
         if not isinstance(data, list):
             data = [data]
-
         req = requests.post(
             '{0}://g.api.{1}/cs'.format(self.schema, self.domain),
             params=params,
@@ -208,6 +206,15 @@ class Mega(object):
             if file[1]['a'] and file[1]['a']['n'] == filename:
                 return file
 
+    def find_folder(self, foldername):
+        """
+        Return folder object from given foldername
+        """
+        files = self.get_files()
+        for file in files.items():
+            if file[1]['a'] and file[1]['t'] and file[1]['a']['n'] == filename:
+                return file
+                
     def get_files(self):
         """
         Get all files in account
@@ -616,46 +623,48 @@ class Mega(object):
         mac_encryptor = AES.new(k_str, AES.MODE_CBC, mac_str)
         iv_str = a32_to_str([ul_key[4], ul_key[5], ul_key[4], ul_key[5]])
 
-        for chunk_start, chunk_size in get_chunks(file_size):
-            chunk = input_file.read(chunk_size)
-            upload_progress += len(chunk)
+        if file_size > 0:
+            for chunk_start, chunk_size in get_chunks(file_size):
+                chunk = input_file.read(chunk_size)
+                upload_progress += len(chunk)
 
-            encryptor = AES.new(k_str, AES.MODE_CBC, iv_str)
-            for i in range(0, len(chunk)-16, 16):
+                encryptor = AES.new(k_str, AES.MODE_CBC, iv_str)
+                for i in range(0, len(chunk)-16, 16):
+                    block = chunk[i:i + 16]
+                    encryptor.encrypt(block)
+
+                #fix for files under 16 bytes failing
+                if file_size > 16:
+                    i += 16
+                else:
+                    i = 0
+
                 block = chunk[i:i + 16]
-                encryptor.encrypt(block)
+                if len(block) % 16:
+                    block += '\0' * (16 - len(block) % 16)
+                
+                mac_str = mac_encryptor.encrypt(encryptor.encrypt(block))
 
-            #fix for files under 16 bytes failing
-            if file_size > 16:
-                i += 16
-            else:
-                i = 0
+                #encrypt file and upload
+                chunk = aes.encrypt(chunk)
+                output_file = requests.post(ul_url + "/" + str(chunk_start),
+                                            data=chunk, timeout=self.timeout)
+                completion_file_handle = output_file.text
 
-            block = chunk[i:i + 16]
-            if len(block) % 16:
-                block += '\0' * (16 - len(block) % 16)
-            mac_str = mac_encryptor.encrypt(encryptor.encrypt(block))
-
-            #encrypt file and upload
-            chunk = aes.encrypt(chunk)
-            output_file = requests.post(ul_url + "/" + str(chunk_start),
-                                        data=chunk, timeout=self.timeout)
-            completion_file_handle = output_file.text
-
-            if self.options.get('verbose') is True:
-                # upload progress
-                print('{0} of {1} uploaded'.format(upload_progress, file_size))
+                if self.options.get('verbose') is True:
+                    # upload progress
+                    print('{0} of {1} uploaded'.format(upload_progress, file_size))
 
         file_mac = str_to_a32(mac_str)
 
         #determine meta mac
         meta_mac = (file_mac[0] ^ file_mac[1], file_mac[2] ^ file_mac[3])
 
+
         if dest_filename is not None:
             attribs = {'n': dest_filename}
         else:
             attribs = {'n': os.path.basename(filename)}
-
         encrypt_attribs = base64_url_encode(encrypt_attr(attribs, ul_key[:4]))
         key = [ul_key[0] ^ ul_key[4], ul_key[1] ^ ul_key[5],
                ul_key[2] ^ meta_mac[0], ul_key[3] ^ meta_mac[1],
