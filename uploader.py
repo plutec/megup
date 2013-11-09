@@ -28,11 +28,11 @@ class UploaderMega(object):
 			Nothing
 		"""
 		# Save in mega in folder 'path' with the original name
-		folder = self.mega.find(path)
+		folder = self.mega.find_path_descriptor(path)
 		if not folder:
-			self.mkdir(path)
-			folder = self.mega.find(path)
-		self.mega.upload(filename, folder[0])
+			folder = self.mkdir(path)
+			
+		self.mega.upload(filename, folder)
 		
 
 	def get_last_upload(self):
@@ -64,6 +64,8 @@ class UploaderMega(object):
 		Create a remote folder
 		Params:
 			dirname: string with the complete path (i.e.: pepito/lechuga/fria)
+		Returns:
+			dirname descriptor
 		"""
 		folders = dirname.split('/')
 		parent_desc = self.mega.get_root_descriptor()
@@ -75,6 +77,7 @@ class UploaderMega(object):
 				parent_desc = data['f'][0]['h']
 			else:
 				parent_desc = exists[0]
+		return parent_desc
 
 
 	def exists_dir(self, dirname):
@@ -84,8 +87,8 @@ class UploaderMega(object):
 			self, the object
 			dirname, string with complete remote path
 		"""
-		folder = self.mega.find(dirname)
-		if folder: return True
+		if self.mega.find_path_descriptor(dirname):
+			return True
 		return False
 
 	def free_space(self):

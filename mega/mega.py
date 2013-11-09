@@ -198,10 +198,40 @@ class Mega(object):
     ##########################################################################
     # GET
     def get_root_descriptor(self):
+        """
+        Obtain root descriptor
+        """
         if not hasattr(self, 'root_id'):
             self.get_files()
         return self.root_id
 
+    def find_path_descriptor(self, path):
+        """
+        Find descriptor of folder inside a path. i.e.: folder1/folder2/folder3
+        Params:
+            path, string like folder1/folder2/folder3
+        Return:
+            Descriptor (str) of folder3 if exists, None otherwise
+        """
+        paths = path.split('/')
+
+        files = self.get_files()
+        parent_desc = self.root_id
+        found = False
+        for foldername in paths:
+            if foldername != '':
+                for file in files.iteritems():
+                    if file[1]['a'] and file[1]['t'] and \
+                            file[1]['a']['n'] == foldername:
+                        if parent_desc == file[1]['p']:
+                            parent_desc = file[0]
+                            found = True
+                if found:
+                    found = False
+                else:
+                    return None
+        return parent_desc
+        
     def find(self, filename):
         """
         Return file object from given filename
@@ -666,7 +696,10 @@ class Mega(object):
                 if self.options.get('verbose') is True:
                     # upload progress
                     print('{0} of {1} uploaded'.format(upload_progress, file_size))
-
+        else:
+            output_file = requests.post(ul_url + "/0",
+                                            data='', timeout=self.timeout)
+            completion_file_handle = output_file.text
         file_mac = str_to_a32(mac_str)
 
         #determine meta mac
