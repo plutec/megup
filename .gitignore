@@ -1,5 +1,9 @@
 *.py[cod]
 
+# Dumps files
+*.dmp
+*.dump
+
 # C extensions
 # *.so
 
