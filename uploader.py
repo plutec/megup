@@ -57,7 +57,7 @@ class UploaderMega(object):
 		Return:
 			dictionary with information about the folder
 		"""
-		self.mega.find_folder(foldername)
+		return self.mega.find_folder(foldername)
 		
 	def mkdir(self, dirname):
 		"""
@@ -65,14 +65,16 @@ class UploaderMega(object):
 		Params:
 			dirname: string with the complete path (i.e.: pepito/lechuga/fria)
 		"""
-		#TODO
 		folders = dirname.split('/')
-		acum = folders[0]
-		dest = self.mega.find(acum)
-		for folder in folders[1:]:
-			self.mega.create_folder(folder, dest[0])
-			acum = '%s/%s' % (acum,folder)
-			dest = self.mega.find(acum)
+		parent_desc = self.mega.get_root_descriptor()
+		for folder in folders:
+			#Exists folder with this parent?
+			exists = self.mega.find_folder(folder, parent=parent_desc)
+			if not exists:
+				data = self.mega.create_folder(folder, parent_desc)
+				parent_desc = data['f'][0]['h']
+			else:
+				parent_desc = exists[0]
 
 
 	def exists_dir(self, dirname):

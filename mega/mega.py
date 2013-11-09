@@ -197,6 +197,11 @@ class Mega(object):
 
     ##########################################################################
     # GET
+    def get_root_descriptor(self):
+        if not hasattr(self, 'root_id'):
+            self.get_files()
+        return self.root_id
+
     def find(self, filename):
         """
         Return file object from given filename
@@ -206,14 +211,21 @@ class Mega(object):
             if file[1]['a'] and file[1]['a']['n'] == filename:
                 return file
 
-    def find_folder(self, foldername):
+    def find_folder(self, foldername, parent=None):
         """
         Return folder object from given foldername
         """
-        files = self.get_files()
-        for file in files.items():
-            if file[1]['a'] and file[1]['t'] and file[1]['a']['n'] == filename:
-                return file
+        folders = self.get_files()
+        for folder in folders.items():
+            if folder[1]['a'] and folder[1]['t'] and \
+                        folder[1]['a']['n'] == foldername:
+                if parent:
+                    if folder[1]['p'] == parent:
+                        return folder
+                else:
+                    
+                    return folder
+        return None
                 
     def get_files(self):
         """
