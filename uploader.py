@@ -31,11 +31,38 @@ class UploaderMega(object):
         if not folder:
             folder = self.mkdir(path)
             
-        data = self.mega.upload(filename, folder)
+        data = self.mega.upload(filename=filename, dest=folder)
         #print data
         return data['f'][0]['h']
-        
+    
+    def upload_raw(self, path, filename, raw):
+        """
+        Upload raw data to mega
+        Params:
+            self, the object
+            path, string with remote path
+            filename, string with the desire remote name
+            raw, str with bytes
+        """
+        folder = self.mega.find_path_descriptor(path)
+        if not folder:
+            folder = self.mkdir(path)
 
+        data = self.mega.upload_raw(raw=raw, raw_name=filename, dest=folder)
+        return data['f'][0]['h']
+
+    def remove(self, path, filename):
+        #First, find file
+        desc = self.get_file(path=path, filename=filename)
+        if desc:
+            print path
+            print filename
+            print desc
+            self.mega.destroy(desc)
+            return True
+        else:
+            #print "FILE %s/%s NOT FOUND FOR DELETE" % (path, filename)
+            return False
     def get_file(self, filename, path):
         #Find parent
         parent_desc = self.mega.find_path_descriptor(path=path)

@@ -9,6 +9,8 @@ REMOVED = 0
 NEW = 1
 RENAMED = 2
 THE_SAME = 3
+FOLDER = 'FOLDER' #TODO Change to number
+FILE = 'FILE' #TODO Change to number
 
 class FileSystem(object):
 
@@ -34,7 +36,7 @@ class FileSystem(object):
             for file_name in files:
                 file_path = os.path.join(root, file_name) 
                 file_obj = FileObject(
-                        relative_path=self._convert_to_relative_path(file_path), 
+                        relative_path=self._convert_to_relative_path(root), 
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
@@ -42,8 +44,9 @@ class FileSystem(object):
             #For each subfolder
             for subfolder in subfolders:
                 file_path = os.path.join(root,subfolder)
+                #print "SUBFOLDER %s" % subfolder
                 file_obj = FileObject(
-                        relative_path=self._convert_to_relative_path(file_path), 
+                        relative_path=self._convert_to_relative_path(root), 
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
@@ -68,13 +71,16 @@ class FileSystem(object):
         descriptor = open(filename, 'wb')
         pickle.dump(self, descriptor)
         descriptor.close()
+        
+    def get_dump(self):
+        return pickle.dumps(self)
 
     def get_file(self, path):
         for file in self.files:
             if file.path == path:
                 return file
 
-    def print_in_screen(self):
+    def print_to_screen(self):
         for file in self.files:
             print file
 
@@ -86,17 +92,18 @@ def compare_fs(actual_fs, old_fs):
     to_ret = dict()
     to_ret['removed_files'] = list()
     to_ret['removed_folders'] = list()
-    to_ret['new_file'] = list()
+    to_ret['new_files'] = list()
+    to_ret['new_folders'] = list()
     for file in old_fs.files:
-        print file.path
+        #print file.path
         res = actual_fs.find_by_path(file.path)
         if not res:
             if file.type == 'FOLDER':
-                print "REMOVED FOLDER %s" % file # Running ok
+                #print "REMOVED FOLDER %s" % file # Running ok
                 to_ret['removed_folders'].append(file)
                 file.status = REMOVED
             elif file.type == 'FILE':
-                print "REMOVED FILE %s" % file # Running ok
+                #print "REMOVED FILE %s" % file # Running ok
                 to_ret['removed_files'].append(file)
                 file.status = REMOVED
         elif file.hash:
@@ -107,36 +114,38 @@ def compare_fs(actual_fs, old_fs):
                     if file == file2:
                         res = file2
                 if file2:
-                    print "FOUND, EXACTLY EQUAL"
+                    #print "FOUND, EXACTLY EQUAL"
                     file.status = THE_SAME
                     res.status = THE_SAME
                 else:
-                    print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
+                    pass
+                    #print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
             else:
-                print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO, PASANDO"
+                pass
+                #print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO, PASANDO"
         else:
-            print "PATH CHECK"
+            #print "PATH CHECK"
             if file.type == 'FOLDER':
                 res = actual_fs.find_by_path(file.path)
                 if res:
-                    print "FOLDER FOUND"
+                    #print "FOLDER FOUND"
                     file.status = THE_SAME
                     res.status = THE_SAME
                 else:
-                    print "FOLDER NOT FOUND AGAIN, NO DEBE SALIR"
+                    pass
+                    #print "FOLDER NOT FOUND AGAIN, NO DEBE SALIR"
 
 
                 #print "ELIMINADO %s" % file
     for file in actual_fs.files:
         if not hasattr(file, 'status'):
             file.status = NEW
-            print "NUEVO: %s" % file
-            to_ret['new_file'].append(file)
-    # Then, the changes
-    #for file in old_fs.files:
-    #    if file.hash:
-    #        res = actual_fs.find_by_hash
-    #pass
+            if file.type == 'FOLDER':
+                to_ret['new_folders'].append(file)
+            elif file.type == 'FILE':
+                #print "NUEVO: %s" % file
+                to_ret['new_files'].append(file)
+
     return to_ret
 
 def load_filesystem(filename):
@@ -166,17 +175,17 @@ class FileObject(object):
         self.level = level#len(path.split('/'))
         self.calcule_hash()
         self.calcule_type()
-        if self.type == 'FILE':
-            self.name = path.split('/')[-1]
-        else:
-            self.name = ''
+        #if self.type == 'FILE':
+        self.name = path.split('/')[-1]
+        #else:
+        #    self.name = ''
 
     def __str__(self):
         to_ret = dict()
         to_ret['name'] = self.name
         to_ret['path'] = self.path
         to_ret['level'] = self.level
-        to_ret['relative'] = self.relative_path
+        to_ret['relative_path'] = self.relative_path
         to_ret['hash'] = self.hash
         to_ret['type'] = self.type
         if hasattr(self, 'status'):

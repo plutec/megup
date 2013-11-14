@@ -672,7 +672,7 @@ class Mega(object):
 
             #encrypt file and upload
             chunk = aes.encrypt(chunk)
-            """
+            
             output_file = requests.post(ul_url + "/" + str(chunk_start),
                                         data=chunk, timeout=self.timeout)
             completion_file_handle = output_file.text
@@ -681,6 +681,7 @@ class Mega(object):
                                        data=chunk, 
                                        timeout=self.timeout)
             completion_file_handle = output_file.text
+            """
             if self.options.get('verbose') is True:
                 # upload progress
                 print('{0} of {1} uploaded'.format(upload_progress, file_size))

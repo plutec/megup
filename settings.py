@@ -1,5 +1,6 @@
 settings = {
-    'mega_verbose':False,    
+    'mega_verbose':False,
+    'megup_debug':5, #0 - 10    
     'remote_folder':'megup',
     'summary_file':'.summary_megup'
 }

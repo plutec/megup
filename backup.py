@@ -16,39 +16,110 @@ class Backup(object):
         self.path = path
         self.uploader = uploader.UploaderMega()
         self.now_path = path #Is it used?
-
-
-    def run(self):
         self.actual_filesystem = filesystem.FileSystem(
                                     initial_path=self.path)
-        print "1 - LOAD REMOTE FS"
-        self.get_remote_fs_struct()
-        return
-        print "GENERA ACTUAL FS"
-        self.actual_filesystem.generate()
-        #self.actual_filesystem.dump_to_file('fs.dmp')
-        print "PREPARA BACKUP"
-        self.prepare_to_init_backup()
-        #self.visit_path()
-        return
+        self.initial_backup = False
 
-        print "GENERA CAMBIOS"
-        print ('*'*80)
-        changes = filesystem.compare_fs(actual_fs=self.actual_filesystem,
-                                        old_fs=self.remote_filesystem)
+    def is_initial_backup(self):
+        self.initial_backup = True
+
+    def run(self):
+        if self.initial_backup:
+            print "0 - PREPARA BACKUP"
+            self.prepare_to_init_backup()
+        if not self.initial_backup:
+            print "1 - LOAD REMOTE FS"
+            self.get_remote_fs_struct()
+
+        print "2 - GENERA ACTUAL FS"
+        self.actual_filesystem.generate()
+        #self.actual_filesystem.print_to_screen()
+        #self.actual_filesystem.dump_to_file('fs.dmp')
+    
+        if not self.initial_backup:        
+            print "3,4 - CALCULA CAMBIOS"
+            #print ('*'*80)
+            changes = filesystem.compare_fs(actual_fs=self.actual_filesystem,
+                                            old_fs=self.remote_filesystem)
         #print changes
-        self.process_changes_in_remote(changes)
+        #return 
+        #self.visit_path()
+
+        #print changes
+        if not self.initial_backup:
+            print "5 - APLICA DIFERENCIAS (BORRA Y SUBE NUEVOS)"
+            self.process_changes_in_remote(changes)
+
+        if self.initial_backup:
+            print "5.5 - UPLOAD ALL LOCAL FS"
+            self.upload_all()
+
+        print "6 - ACTUALIZA FS REMOTO"
+        self.upload_actual_fs_struct()
+
+    def upload_all(self):
+        """
+        Upload a complete FileSystem
+        Params:
+            fs: FileSystem object
+        """
+        for file in self.actual_filesystem.files:
+            if file.type == filesystem.FOLDER:
+                remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+                                           file.name)
+                rem_desc = self.uploader.mkdir(remote_folder)
+            elif file.type == filesystem.FILE:
+                remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+                                           file.relative_path)
+                rem_desc = self.uploader.upload(remote_folder, file.path)
+
 
     def prepare_to_init_backup(self):
         self.uploader.mkdir(settings.settings['remote_folder'])
 
     def process_changes_in_remote(self, changes):
         print "PROCESANDO CAMBIOS EN REMOTO"
-        print changes
+        
+        print "Removing files..."
+        remove_files = changes['removed_files']
+        for file in remove_files:
+            status = self.uploader.remove(
+                path='%s/%s' % (settings.settings['remote_folder'],
+                                                          file.relative_path),
+                filename=file.name)
+            if not status:
+                print "ERROR AL ELIMINAR ARCHIVO %s" % file
+            #print file
+
+        remove_folders = changes['removed_folders']
+        #TODO
+        print "Uploading new files..."
+        new_files = changes['new_files']
+        for file in new_files:
+            remote_folder = '%s/%s' % (settings.settings['remote_folder'], file.relative_path)
+            rem_desc = self.uploader.upload(remote_folder, file.path)
+
+        print "Creating remote folders..."
+        new_folders = changes['new_folders']
+        for folder in new_folders:
+            print folder
+            remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+                                       folder.name)
+            rem_desc = self.uploader.mkdir(remote_folder)
+        #TODO
+        #print changes
 
     def upload_actual_fs_struct(self):
-        pass
-
+        #Debe reemplazar el antiguo si lo hay
+        self.actual_filesystem.dump_to_file('fs.dmp')
+        #remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+        #                           settings.settings['summary_file'])
+        #rem_desc = self.uploader.upload(remote_folder, 'fs.dmp')
+        rem_desc = self.uploader.upload_raw(
+                                    path=settings.settings['remote_folder'],
+                                    filename=settings.settings['summary_file'], 
+                                    raw=self.actual_filesystem.get_dump())
+        print rem_desc
     def get_remote_fs_struct(self):
         file_desc = self.uploader.get_file(
                                 filename=settings.settings['summary_file'], 
@@ -57,8 +128,6 @@ class Backup(object):
         a = self.uploader.mega.download(file=file_desc, in_descriptor=True) #Make with a function
         #print "DESCARGADO"
         self.remote_filesystem = filesystem.load_filesystem_descriptor(a)
-        print self.remote_filesystem.print_in_screen()
-        print "DESCARGADO FS REMOTO"
 
     def visit_path(self):
         """
