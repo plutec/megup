@@ -4,5 +4,9 @@ import uploader
 import filesystem
 
 
-b = backup.Backup(settings.settings['sync_file'])
-b.run()
+def main():
+	b = backup.Backup(settings.settings['sync_file'])
+	b.run()
+
+if __name__ == '__main__':
+	main()
