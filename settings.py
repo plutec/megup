@@ -1,6 +1,7 @@
 settings = {
     'mega_verbose':True,    
-    'remote_folder':'megup'
+    'remote_folder':'megup',
+    'summary_file':'.summary_megup'
 }
 
 #Local settings

@@ -44,7 +44,7 @@ def post_request(url, params=None, data=None, timeout=None):
     if isinstance(data, dict):
         data = urllib.urlencode(data)
     #Prepare request
-    req = urllib2.Request(url, json.dumps(data))
+    req = urllib2.Request(url, data)
     response = urllib2.urlopen(req, timeout=timeout)
 
     to_ret = Request(page=response)
@@ -152,7 +152,7 @@ class Mega(object):
         req = post_request(
             url='{0}://g.api.{1}/cs'.format(self.schema, self.domain),
             params=params,
-            data=data,
+            data=json.dumps(data),
             timeout=self.timeout
             )
         json_resp = req.json
@@ -555,7 +555,7 @@ class Mega(object):
             file_name = dest_filename
         else:
             file_name = attribs['n']
-        print file_url
+        #print file_url
         retries = 4
         ok = False
         while not ok and retries:
@@ -761,30 +761,32 @@ class Mega(object):
 
                 #encrypt file and upload
                 chunk = aes.encrypt(chunk)
-                """
+                
                 output_file = requests.post(ul_url + "/" + str(chunk_start),
                                             data=chunk, timeout=self.timeout)
                 completion_file_handle = output_file.text
+                
+                #print chunk
                 """
                 output_file = post_request(url=ul_url + "/" + str(chunk_start), 
-                                       data=chunk, 
-                                       timeout=self.timeout)
+                                           data=chunk.decode('utf-8'),#.encode('utf-8'), 
+                                           timeout=self.timeout)
                 completion_file_handle = output_file.text
-
+                """
                 if self.options.get('verbose') is True:
                     # upload progress
                     print('{0} of {1} uploaded'.format(upload_progress, file_size))
         else:
-            """
+            
             output_file = requests.post(ul_url + "/0",
                                             data='', timeout=self.timeout)
             completion_file_handle = output_file.text
             """
             output_file = post_request(url=ul_url + "/0", 
-                                       data=chunk, 
+                                       data='', 
                                        timeout=self.timeout)
             completion_file_handle = output_file.text
-
+            """
         file_mac = str_to_a32(mac_str)
 
         #determine meta mac

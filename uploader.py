@@ -13,7 +13,6 @@ class UploaderMega(object):
 		"""
 		self.mega = mega_library.Mega({'verbose':
 											settings.settings['mega_verbose']})
-		#print settings.settings['mega_mail']
 		self.mega.login(email=settings.settings['mega_mail'],
 							password=settings.settings['mega_passw'])
 
@@ -32,14 +31,16 @@ class UploaderMega(object):
 		if not folder:
 			folder = self.mkdir(path)
 			
-		self.mega.upload(filename, folder)
+		data = self.mega.upload(filename, folder)
+		print data
 		
 
-	def get_last_upload(self):
-		"""
-		Get time of the last upload to Mega
-		"""
-		pass
+	def get_file(self, filename, path):
+		#Find parent
+		parent_desc = self.mega.find_path_descriptor(path=path)
+		#Find filename in parent
+		to_ret = self.mega.find(filename=filename, parent=parent_desc)
+		return to_ret
 
 	def get_user_info(self):
 		"""
