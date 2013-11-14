@@ -7,11 +7,49 @@ import os
 import random
 import binascii
 import requests
+import urllib
+import urllib2
+import json
 import shutil
 from .errors import ValidationError, RequestError
 from .crypto import *
 import tempfile
 
+class Request(object):
+    raw = None
+    text = None
+    json = None
+
+    def __init__(self, page):
+        self.text = page.read()
+        #print self.text
+        self.raw = self.text
+        self.json = json.loads(self.text)
+
+def get_request(url, params=None, stream=None, timeout=1):
+    #TODO
+    pass
+
+def post_request(url, params=None, data=None, timeout=None):
+    if not params:
+        params = dict()
+    if not data:
+        data = dict()
+
+    #Construct URL with params
+    params = urllib.urlencode(params)
+    url = '%s?%s' % (url, params)
+    #print url
+    #Prepare data
+    if isinstance(data, dict):
+        data = urllib.urlencode(data)
+    #Prepare request
+    req = urllib2.Request(url, data)
+    response = urllib2.urlopen(req, timeout=timeout)
+
+    to_ret = Request(page=response)
+    return to_ret
+    
 
 class Mega(object):
     def __init__(self, options=None):
@@ -102,14 +140,23 @@ class Mega(object):
         #ensure input data is a list
         if not isinstance(data, list):
             data = [data]
-
+        """
         req = requests.post(
             '{0}://g.api.{1}/cs'.format(self.schema, self.domain),
             params=params,
             data=json.dumps(data),
             timeout=self.timeout)
+        print req.url
         json_resp = json.loads(req.text)
-
+        """
+        req = post_request(
+            url='{0}://g.api.{1}/cs'.format(self.schema, self.domain),
+            params=params,
+            data=json.dumps(data),
+            timeout=self.timeout
+            )
+        json_resp = req.json
+        
         #if numeric error code response
         if isinstance(json_resp, int):
             raise RequestError(json_resp)
@@ -199,15 +246,71 @@ class Mega(object):
 
     ##########################################################################
     # GET
-    def find(self, filename):
+    def get_root_descriptor(self):
+        """
+        Obtain root descriptor
+        """
+        if not hasattr(self, 'root_id'):
+            self.get_files()
+        return self.root_id
+
+    def find_path_descriptor(self, path):
+        """
+        Find descriptor of folder inside a path. i.e.: folder1/folder2/folder3
+        Params:
+            path, string like folder1/folder2/folder3
+        Return:
+            Descriptor (str) of folder3 if exists, None otherwise
+        """
+        paths = path.split('/')
+
+        files = self.get_files()
+        parent_desc = self.root_id
+        found = False
+        for foldername in paths:
+            if foldername != '':
+                for file in files.iteritems():
+                    if file[1]['a'] and file[1]['t'] and \
+                            file[1]['a']['n'] == foldername:
+                        if parent_desc == file[1]['p']:
+                            parent_desc = file[0]
+                            found = True
+                if found:
+                    found = False
+                else:
+                    return None
+        return parent_desc
+        
+    def find(self, filename, parent=None):
         """
         Return file object from given filename
         """
         files = self.get_files()
         for file in files.items():
             if file[1]['a'] and file[1]['a']['n'] == filename:
-                return file
+                if not parent:
+                    return file
+                else:
+                    if parent == file[1]['p']:
+                        return file
+        return None
 
+    def find_folder(self, foldername, parent=None):
+        """
+        Return folder object from given foldername
+        """
+        folders = self.get_files()
+        for folder in folders.items():
+            if folder[1]['a'] and folder[1]['t'] and \
+                        folder[1]['a']['n'] == foldername:
+                if parent:
+                    if folder[1]['p'] == parent:
+                        return folder
+                else:
+                    
+                    return folder
+        return None
+                
     def get_files(self):
         """
         Get all files in account
@@ -402,11 +505,14 @@ class Mega(object):
 
     ##########################################################################
     # DOWNLOAD
-    def download(self, file, dest_path=None, dest_filename=None):
+    def download(self, file, dest_path=None, dest_filename=None, in_descriptor=None):
         """
         Download a file by it's file object
         """
-        self._download_file(None, None, file=file[1], dest_path=dest_path, dest_filename=dest_filename, is_public=False)
+        to_ret = self._download_file(None, None, file=file[1], dest_path=dest_path, 
+                                dest_filename=dest_filename, is_public=False, in_descriptor=in_descriptor)
+        if in_descriptor:
+            return to_ret
 
     def download_url(self, url, dest_path=None, dest_filename=None):
         """
@@ -417,7 +523,7 @@ class Mega(object):
         file_key = path[1]
         self._download_file(file_id, file_key, dest_path, dest_filename, is_public=True)
 
-    def _download_file(self, file_handle, file_key, dest_path=None, dest_filename=None, is_public=False, file=None):
+    def _download_file(self, file_handle, file_key, dest_path=None, dest_filename=None, is_public=False, file=None, in_descriptor=None):
         if file is None:
             if is_public:
                 file_key = base64_to_a32(file_key)
@@ -449,16 +555,24 @@ class Mega(object):
             file_name = dest_filename
         else:
             file_name = attribs['n']
-
-        input_file = requests.get(file_url, stream=True).raw
-
+        #print file_url
+        retries = 4
+        ok = False
+        while not ok and retries:
+            try:
+                input_file = requests.get(file_url, stream=True, timeout=1).raw
+                ok = True
+            except:
+                ok = False
+                retries -= 1
+                print "RETRY %s" %retries
+        #print input_file
         if dest_path is None:
             dest_path = ''
         else:
             dest_path += '/'
 
         temp_output_file = tempfile.NamedTemporaryFile(mode='w+b', prefix='megapy_', delete=False)
-
         k_str = a32_to_str(k)
         counter = Counter.new(
             128, initial_value=((iv[0] << 32) + iv[1]) << 64)
@@ -467,7 +581,6 @@ class Mega(object):
         mac_str = '\0' * 16
         mac_encryptor = AES.new(k_str, AES.MODE_CBC, mac_str)
         iv_str = a32_to_str([iv[0], iv[1], iv[0], iv[1]])
-
         for chunk_start, chunk_size in get_chunks(file_size):
             chunk = input_file.read(chunk_size)
             chunk = aes.decrypt(chunk)
@@ -501,8 +614,11 @@ class Mega(object):
         # check mac integrity
         if (file_mac[0] ^ file_mac[1], file_mac[2] ^ file_mac[3]) != meta_mac:
             raise ValueError('Mismatched mac')
-
-        shutil.move(temp_output_file.name, dest_path + file_name)
+        if in_descriptor:
+            to_ret = open(temp_output_file.name, 'rb')
+            return to_ret
+        else:
+            shutil.move(temp_output_file.name, dest_path + file_name)
 
     ##########################################################################
     # UPLOAD RAW
@@ -556,10 +672,15 @@ class Mega(object):
 
             #encrypt file and upload
             chunk = aes.encrypt(chunk)
+            """
             output_file = requests.post(ul_url + "/" + str(chunk_start),
                                         data=chunk, timeout=self.timeout)
             completion_file_handle = output_file.text
-
+            """
+            output_file = post_request(url=ul_url + "/" + str(chunk_start), 
+                                       data=chunk, 
+                                       timeout=self.timeout)
+            completion_file_handle = output_file.text
             if self.options.get('verbose') is True:
                 # upload progress
                 print('{0} of {1} uploaded'.format(upload_progress, file_size))
@@ -616,46 +737,66 @@ class Mega(object):
         mac_encryptor = AES.new(k_str, AES.MODE_CBC, mac_str)
         iv_str = a32_to_str([ul_key[4], ul_key[5], ul_key[4], ul_key[5]])
 
-        for chunk_start, chunk_size in get_chunks(file_size):
-            chunk = input_file.read(chunk_size)
-            upload_progress += len(chunk)
+        if file_size > 0:
+            for chunk_start, chunk_size in get_chunks(file_size):
+                chunk = input_file.read(chunk_size)
+                upload_progress += len(chunk)
 
-            encryptor = AES.new(k_str, AES.MODE_CBC, iv_str)
-            for i in range(0, len(chunk)-16, 16):
+                encryptor = AES.new(k_str, AES.MODE_CBC, iv_str)
+                for i in range(0, len(chunk)-16, 16):
+                    block = chunk[i:i + 16]
+                    encryptor.encrypt(block)
+
+                #fix for files under 16 bytes failing
+                if file_size > 16:
+                    i += 16
+                else:
+                    i = 0
+
                 block = chunk[i:i + 16]
-                encryptor.encrypt(block)
+                if len(block) % 16:
+                    block += '\0' * (16 - len(block) % 16)
+                
+                mac_str = mac_encryptor.encrypt(encryptor.encrypt(block))
 
-            #fix for files under 16 bytes failing
-            if file_size > 16:
-                i += 16
-            else:
-                i = 0
-
-            block = chunk[i:i + 16]
-            if len(block) % 16:
-                block += '\0' * (16 - len(block) % 16)
-            mac_str = mac_encryptor.encrypt(encryptor.encrypt(block))
-
-            #encrypt file and upload
-            chunk = aes.encrypt(chunk)
-            output_file = requests.post(ul_url + "/" + str(chunk_start),
-                                        data=chunk, timeout=self.timeout)
+                #encrypt file and upload
+                chunk = aes.encrypt(chunk)
+                
+                output_file = requests.post(ul_url + "/" + str(chunk_start),
+                                            data=chunk, timeout=self.timeout)
+                completion_file_handle = output_file.text
+                
+                #print chunk
+                """
+                output_file = post_request(url=ul_url + "/" + str(chunk_start), 
+                                           data=chunk.decode('utf-8'),#.encode('utf-8'), 
+                                           timeout=self.timeout)
+                completion_file_handle = output_file.text
+                """
+                if self.options.get('verbose') is True:
+                    # upload progress
+                    print('{0} of {1} uploaded'.format(upload_progress, file_size))
+        else:
+            
+            output_file = requests.post(ul_url + "/0",
+                                            data='', timeout=self.timeout)
             completion_file_handle = output_file.text
-
-            if self.options.get('verbose') is True:
-                # upload progress
-                print('{0} of {1} uploaded'.format(upload_progress, file_size))
-
+            """
+            output_file = post_request(url=ul_url + "/0", 
+                                       data='', 
+                                       timeout=self.timeout)
+            completion_file_handle = output_file.text
+            """
         file_mac = str_to_a32(mac_str)
 
         #determine meta mac
         meta_mac = (file_mac[0] ^ file_mac[1], file_mac[2] ^ file_mac[3])
 
+
         if dest_filename is not None:
             attribs = {'n': dest_filename}
         else:
             attribs = {'n': os.path.basename(filename)}
-
         encrypt_attribs = base64_url_encode(encrypt_attr(attribs, ul_key[:4]))
         key = [ul_key[0] ^ ul_key[4], ul_key[1] ^ ul_key[5],
                ul_key[2] ^ meta_mac[0], ul_key[3] ^ meta_mac[1],

@@ -1,10 +1,14 @@
 *.py[cod]
 
+# Dumps files
+*.dmp
+*.dump
+
 # C extensions
 # *.so
 
 # Settings
-local.settings.py
+local_settings.py
 
 # Packages
 *.egg
