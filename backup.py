@@ -21,13 +21,15 @@ class Backup(object):
     def run(self):
         self.actual_filesystem = filesystem.FileSystem(
                                     initial_path=self.path)
+        print "1 - LOAD REMOTE FS"
+        self.get_remote_fs_struct()
+        return
         print "GENERA ACTUAL FS"
         self.actual_filesystem.generate()
+        #self.actual_filesystem.dump_to_file('fs.dmp')
         print "PREPARA BACKUP"
-        #self.prepare_to_init_backup()
-        print "LOAD REMOTE FS"
-        #self.get_remote_fs_struct()
-        self.visit_path()
+        self.prepare_to_init_backup()
+        #self.visit_path()
         return
 
         print "GENERA CAMBIOS"
@@ -50,13 +52,12 @@ class Backup(object):
     def get_remote_fs_struct(self):
         file_desc = self.uploader.get_file(
                                 filename=settings.settings['summary_file'], 
-                                path=self.path)
-        #print file_desc
-        #print "OBTIENE"
+                                path=settings.settings['remote_folder'])
+
         a = self.uploader.mega.download(file=file_desc, in_descriptor=True) #Make with a function
         #print "DESCARGADO"
         self.remote_filesystem = filesystem.load_filesystem_descriptor(a)
-        #print self.remote_filesystem.print_in_screen()
+        print self.remote_filesystem.print_in_screen()
         print "DESCARGADO FS REMOTO"
 
     def visit_path(self):
@@ -78,13 +79,13 @@ class Backup(object):
                 file_path = os.path.join(root, fil) 
                 print "ORIGEN %s" % file_path
                 #print file_path
-                self.uploader.upload(actual_remote_folder, file_path)
-            
+                rem_desc = self.uploader.upload(actual_remote_folder, file_path)
+                
             #For each subfolder
             for subfolder in subfolders:
                 print "CREO carpeta %s" % actual_remote_folder+'/'+subfolder
                 folder = os.path.join(actual_remote_folder, subfolder)
-                self.uploader.mkdir(folder)
+                rem_desc = self.uploader.mkdir(folder)
             level += 1
             print ('*'*80)
 
