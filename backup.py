@@ -15,7 +15,7 @@ class Backup(object):
         self.recursive = True
         self.path = path
         self.uploader = uploader.UploaderMega()
-        self.now_path = path #Se usa?
+        self.now_path = path #Is it used?
 
 
     def run(self):
@@ -24,9 +24,9 @@ class Backup(object):
         print "GENERA ACTUAL FS"
         self.actual_filesystem.generate()
         print "PREPARA BACKUP"
-        self.prepare_to_init_backup()
+        #self.prepare_to_init_backup()
         print "LOAD REMOTE FS"
-        self.get_remote_fs_struct()
+        #self.get_remote_fs_struct()
         self.visit_path()
         return
 

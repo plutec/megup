@@ -11,21 +11,33 @@ class FileSystem(object):
     def __init__(self, initial_path):
         self.files = list()
         self.path = initial_path
+
+    def _convert_to_relative_path(self, path):
+        to_ret = '/'
+        if path.find(self.path) == 0:
+            to_ret = path[len(self.path):]
+        if to_ret == '':
+            to_ret = '/'
+        return to_ret
     
     def generate(self):
         level = 0
-
+        #Using relative path
         for root, subfolders, files in os.walk(self.path):
             #For each files
             for file_name in files:
                 file_path = os.path.join(root, file_name) 
-                file_obj = FileObject(path=file_path, level=level)
+                file_obj = FileObject(
+                            path=self._convert_to_relative_path(file_path), 
+                            level=level)
                 self.files.append(file_obj)
             
             #For each subfolder
             for subfolder in subfolders:
                 file_path = os.path.join(root,subfolder)
-                file_obj = FileObject(path=file_path, level=level)
+                file_obj = FileObject(
+                            path=self._convert_to_relative_path(file_path), 
+                            level=level)
                 self.files.append(file_obj)
             level += 1
 
