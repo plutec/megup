@@ -4,12 +4,18 @@ import sys
 import stat
 import pickle
 
+#Statics
+REMOVED = 0
+NEW = 1
+RENAMED = 2
+THE_SAME = 3
+
 class FileSystem(object):
 
     files = None
 
     def __init__(self, initial_path):
-        self.files = list()
+        self.files = list() #Must be a tree
         self.path = initial_path
 
     def _convert_to_relative_path(self, path):
@@ -28,16 +34,18 @@ class FileSystem(object):
             for file_name in files:
                 file_path = os.path.join(root, file_name) 
                 file_obj = FileObject(
-                            path=self._convert_to_relative_path(file_path), 
-                            level=level)
+                        relative_path=self._convert_to_relative_path(file_path), 
+                        path=file_path, 
+                        level=level)
                 self.files.append(file_obj)
             
             #For each subfolder
             for subfolder in subfolders:
                 file_path = os.path.join(root,subfolder)
                 file_obj = FileObject(
-                            path=self._convert_to_relative_path(file_path), 
-                            level=level)
+                        relative_path=self._convert_to_relative_path(file_path), 
+                        path=file_path, 
+                        level=level)
                 self.files.append(file_obj)
             level += 1
 
@@ -78,6 +86,7 @@ def compare_fs(actual_fs, old_fs):
     to_ret = dict()
     to_ret['removed_files'] = list()
     to_ret['removed_folders'] = list()
+    to_ret['new_file'] = list()
     for file in old_fs.files:
         print file.path
         res = actual_fs.find_by_path(file.path)
@@ -85,21 +94,44 @@ def compare_fs(actual_fs, old_fs):
             if file.type == 'FOLDER':
                 print "REMOVED FOLDER %s" % file # Running ok
                 to_ret['removed_folders'].append(file)
+                file.status = REMOVED
             elif file.type == 'FILE':
                 print "REMOVED FILE %s" % file # Running ok
                 to_ret['removed_files'].append(file)
+                file.status = REMOVED
         elif file.hash:
             res = actual_fs.find_by_hash(file.hash)
             if res:
-                if file in res:
+                file2 = None
+                for file2 in res:
+                    if file == file2:
+                        res = file2
+                if file2:
                     print "FOUND, EXACTLY EQUAL"
+                    file.status = THE_SAME
+                    res.status = THE_SAME
                 else:
                     print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
             else:
-                print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO"
+                print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO, PASANDO"
         else:
-            print "PATH OK"
+            print "PATH CHECK"
+            if file.type == 'FOLDER':
+                res = actual_fs.find_by_path(file.path)
+                if res:
+                    print "FOLDER FOUND"
+                    file.status = THE_SAME
+                    res.status = THE_SAME
+                else:
+                    print "FOLDER NOT FOUND AGAIN, NO DEBE SALIR"
+
+
                 #print "ELIMINADO %s" % file
+    for file in actual_fs.files:
+        if not hasattr(file, 'status'):
+            file.status = NEW
+            print "NUEVO: %s" % file
+            to_ret['new_file'].append(file)
     # Then, the changes
     #for file in old_fs.files:
     #    if file.hash:
@@ -128,8 +160,9 @@ class FileObject(object):
     hash = None
     type = None
 
-    def __init__(self, path, level):
+    def __init__(self, path, relative_path, level):
         self.path = path
+        self.relative_path = relative_path
         self.level = level#len(path.split('/'))
         self.calcule_hash()
         self.calcule_type()
@@ -143,8 +176,12 @@ class FileObject(object):
         to_ret['name'] = self.name
         to_ret['path'] = self.path
         to_ret['level'] = self.level
+        to_ret['relative'] = self.relative_path
         to_ret['hash'] = self.hash
         to_ret['type'] = self.type
+        if hasattr(self, 'status'):
+            to_ret['STATUS'] = self.status
+
         return str(to_ret)
 
     def __eq__(self, other):
