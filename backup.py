@@ -69,8 +69,12 @@ class Backup(object):
         """
         for file in self.actual_filesystem.files:
             if file.type == filesystem.FOLDER:
-                remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
-                                           file.name)
+                if file.relative_path == '/':
+                    file.relative_path = ''
+                remote_folder = os.path.join(settings.settings['remote_folder'],
+                                             file.relative_path,
+                                             file.name)
+
                 rem_desc = self.uploader.mkdir(remote_folder)
                 file.remote_desc = rem_desc
             elif file.type == filesystem.FILE:
