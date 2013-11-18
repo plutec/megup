@@ -7,49 +7,12 @@ import os
 import random
 import binascii
 import requests
-import urllib
-import urllib2
 import json
 import shutil
 from .errors import ValidationError, RequestError
 from .crypto import *
 import tempfile
-
-class Request(object):
-    raw = None
-    text = None
-    json = None
-
-    def __init__(self, page):
-        self.text = page.read()
-        #print self.text
-        self.raw = self.text
-        self.json = json.loads(self.text)
-
-def get_request(url, params=None, stream=None, timeout=1):
-    #TODO
-    pass
-
-def post_request(url, params=None, data=None, timeout=None):
-    if not params:
-        params = dict()
-    if not data:
-        data = dict()
-
-    #Construct URL with params
-    params = urllib.urlencode(params)
-    url = '%s?%s' % (url, params)
-    #print url
-    #Prepare data
-    if isinstance(data, dict):
-        data = urllib.urlencode(data)
-    #Prepare request
-    req = urllib2.Request(url, data)
-    response = urllib2.urlopen(req, timeout=timeout)
-
-    to_ret = Request(page=response)
-    return to_ret
-    
+   
 
 class Mega(object):
     def __init__(self, options=None):
@@ -140,7 +103,7 @@ class Mega(object):
         #ensure input data is a list
         if not isinstance(data, list):
             data = [data]
-        """
+        
         req = requests.post(
             '{0}://g.api.{1}/cs'.format(self.schema, self.domain),
             params=params,
@@ -148,15 +111,7 @@ class Mega(object):
             timeout=self.timeout)
         print req.url
         json_resp = json.loads(req.text)
-        """
-        req = post_request(
-            url='{0}://g.api.{1}/cs'.format(self.schema, self.domain),
-            params=params,
-            data=json.dumps(data),
-            timeout=self.timeout
-            )
-        json_resp = req.json
-        
+
         #if numeric error code response
         if isinstance(json_resp, int):
             raise RequestError(json_resp)
@@ -710,12 +665,7 @@ class Mega(object):
             output_file = requests.post(ul_url + "/" + str(chunk_start),
                                         data=chunk, timeout=self.timeout)
             completion_file_handle = output_file.text
-            """
-            output_file = post_request(url=ul_url + "/" + str(chunk_start), 
-                                       data=chunk, 
-                                       timeout=self.timeout)
-            completion_file_handle = output_file.text
-            """
+
             if self.options.get('verbose') is True:
                 # upload progress
                 print('{0} of {1} uploaded'.format(upload_progress, file_size))
@@ -800,14 +750,7 @@ class Mega(object):
                 output_file = requests.post(ul_url + "/" + str(chunk_start),
                                             data=chunk, timeout=self.timeout)
                 completion_file_handle = output_file.text
-                
-                #print chunk
-                """
-                output_file = post_request(url=ul_url + "/" + str(chunk_start), 
-                                           data=chunk.decode('utf-8'),#.encode('utf-8'), 
-                                           timeout=self.timeout)
-                completion_file_handle = output_file.text
-                """
+
                 if self.options.get('verbose') is True:
                     # upload progress
                     print('{0} of {1} uploaded'.format(upload_progress, file_size))
@@ -816,12 +759,7 @@ class Mega(object):
             output_file = requests.post(ul_url + "/0",
                                             data='', timeout=self.timeout)
             completion_file_handle = output_file.text
-            """
-            output_file = post_request(url=ul_url + "/0", 
-                                       data='', 
-                                       timeout=self.timeout)
-            completion_file_handle = output_file.text
-            """
+
         file_mac = str_to_a32(mac_str)
 
         #determine meta mac
