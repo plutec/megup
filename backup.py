@@ -130,8 +130,8 @@ class Backup(object):
                                 filename=settings.settings['summary_file'], 
                                 path=settings.settings['remote_folder'])
 
-        fs_descriptor = self.uploader.get_content(file=file_desc, 
-                                                  in_descriptor=True)
+        fs_descriptor = self.uploader.get_content_descriptor(
+                                                        file_info=file_desc)
         #print "DESCARGADO"
         self.remote_filesystem = filesystem.load_filesystem_descriptor(
                                                                 fs_descriptor)
@@ -145,10 +145,6 @@ class Backup(object):
             if file.type == filesystem.FILE: #Else, folder
                 content = self.uploader.get_content(
                                             remote_descriptor=file.remote_desc)
-                content = content.read()
-                print content
-                print "FILE"
-                print file
                 filesystem.create_file(
                         path=os.path.join(settings.settings['sync_file'], 
                                                             file.relative_path),

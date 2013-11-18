@@ -109,7 +109,7 @@ class Mega(object):
             params=params,
             data=json.dumps(data),
             timeout=self.timeout)
-        print req.url
+        #print req.url
         json_resp = json.loads(req.text)
 
         #if numeric error code response
@@ -497,6 +497,8 @@ class Mega(object):
         """
         #First, get complete definition
         file = self.get_file(remote_descriptor)
+        print "REMOTE_DESC"
+        print remote_descriptor
         if file:
             return self.download(file=file, in_descriptor=True)
         return None        
@@ -535,7 +537,7 @@ class Mega(object):
             raise RequestError('File not accessible anymore')
         file_url = file_data['g']
         file_size = file_data['s']
-        print "FILE SIZE: %d" % file_size
+        #print "FILE SIZE: %d" % file_size
         attribs = base64_url_decode(file_data['at'])
         attribs = decrypt_attr(attribs, k)
 
