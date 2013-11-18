@@ -16,50 +16,147 @@ class Backup(object):
         self.path = path
         self.uploader = uploader.UploaderMega()
         self.now_path = path #Is it used?
-
-
-    def run(self):
         self.actual_filesystem = filesystem.FileSystem(
                                     initial_path=self.path)
-        print "GENERA ACTUAL FS"
-        self.actual_filesystem.generate()
-        print "PREPARA BACKUP"
-        #self.prepare_to_init_backup()
-        print "LOAD REMOTE FS"
-        #self.get_remote_fs_struct()
-        self.visit_path()
-        return
+        self.initial_backup = False
+        self.remote_home_backup = False
 
-        print "GENERA CAMBIOS"
-        print ('*'*80)
-        changes = filesystem.compare_fs(actual_fs=self.actual_filesystem,
-                                        old_fs=self.remote_filesystem)
-        #print changes
-        self.process_changes_in_remote(changes)
+    def is_initial_backup(self):
+        self.initial_backup = True
+
+    def run(self, options=None):
+        if self.initial_backup:
+            print "0 - PREPARA BACKUP"
+            self.prepare_to_init_backup()
+
+            print "2 - GENERA ACTUAL FS"
+            self.actual_filesystem.generate()
+
+            print "5.5 - UPLOAD ALL LOCAL FS"
+            self.upload_all()
+
+            print "6 - ACTUALIZA FS REMOTO"
+            self.upload_actual_fs_struct()
+
+        elif self.remote_home_backup:
+            print "1 - LOAD REMOTE FS"
+            self.get_remote_fs_struct()
+            print "2 - SYNC REMOTE HOME"
+            self.sync_remote_home()
+        else: # Reprocess
+            print "1 - LOAD REMOTE FS"
+            self.get_remote_fs_struct()
+
+            print "2 - GENERA ACTUAL FS"
+            self.actual_filesystem.generate()
+
+            print "3,4 - CALCULA CAMBIOS"
+            #print ('*'*80)
+            changes = filesystem.compare_fs(actual_fs=self.actual_filesystem,
+                                            old_fs=self.remote_filesystem)
+     
+            print "5 - APLICA DIFERENCIAS (BORRA Y SUBE NUEVOS)"
+            self.process_changes_in_remote(changes)
+        
+            print "6 - ACTUALIZA FS REMOTO"
+            self.upload_actual_fs_struct()
+
+    def upload_all(self):
+        """
+        Upload a complete FileSystem
+        Params:
+            fs: FileSystem object
+        """
+        for file in self.actual_filesystem.files:
+            if file.type == filesystem.FOLDER:
+                if file.relative_path == '/':
+                    file.relative_path = ''
+                remote_folder = os.path.join(settings.settings['remote_folder'],
+                                             file.relative_path,
+                                             file.name)
+
+                rem_desc = self.uploader.mkdir(remote_folder)
+                file.remote_desc = rem_desc
+            elif file.type == filesystem.FILE:
+                remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+                                           file.relative_path)
+                rem_desc = self.uploader.upload(remote_folder, file.path)
+                file.remote_desc = rem_desc
 
     def prepare_to_init_backup(self):
         self.uploader.mkdir(settings.settings['remote_folder'])
 
     def process_changes_in_remote(self, changes):
         print "PROCESANDO CAMBIOS EN REMOTO"
-        print changes
+        
+        print "Removing files..."
+        remove_files = changes['removed_files']
+        for file in remove_files:
+            status = self.uploader.remove(
+                path='%s/%s' % (settings.settings['remote_folder'],
+                                                          file.relative_path),
+                filename=file.name)
+            if not status:
+                pass
+                #print "ERROR AL ELIMINAR ARCHIVO %s" % file
+            #print file
+
+        remove_folders = changes['removed_folders']
+        #TODO
+        print "Uploading new files..."
+        new_files = changes['new_files']
+        for file in new_files:
+            remote_folder = '%s/%s' % (settings.settings['remote_folder'], file.relative_path)
+            rem_desc = self.uploader.upload(remote_folder, file.path)
+
+        print "Creating remote folders..."
+        new_folders = changes['new_folders']
+        for folder in new_folders:
+            print folder
+            remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+                                       folder.name)
+            rem_desc = self.uploader.mkdir(remote_folder)
+        #print changes
 
     def upload_actual_fs_struct(self):
-        pass
-
+        #Debe reemplazar el antiguo si lo hay
+        self.actual_filesystem.dump_to_file('fs.dmp')
+        #remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
+        #                           settings.settings['summary_file'])
+        #rem_desc = self.uploader.upload(remote_folder, 'fs.dmp')
+        rem_desc = self.uploader.upload_raw(
+                                    path=settings.settings['remote_folder'],
+                                    filename=settings.settings['summary_file'], 
+                                    raw=self.actual_filesystem.get_dump())
+        return rem_desc
     def get_remote_fs_struct(self):
         file_desc = self.uploader.get_file(
                                 filename=settings.settings['summary_file'], 
-                                path=self.path)
-        #print file_desc
-        #print "OBTIENE"
-        a = self.uploader.mega.download(file=file_desc, in_descriptor=True) #Make with a function
-        #print "DESCARGADO"
-        self.remote_filesystem = filesystem.load_filesystem_descriptor(a)
-        #print self.remote_filesystem.print_in_screen()
-        print "DESCARGADO FS REMOTO"
+                                path=settings.settings['remote_folder'])
 
+        fs_descriptor = self.uploader.get_content_descriptor(
+                                                        file_info=file_desc)
+        #print "DESCARGADO"
+        self.remote_filesystem = filesystem.load_filesystem_descriptor(
+                                                                fs_descriptor)
+
+    def sync_remote_home(self):
+        #We have remote FS, then...
+        for file in self.remote_filesystem.files:
+            if file.relative_path == '/':
+                file.relative_path = ''
+            
+            if file.type == filesystem.FILE: #Else, folder
+                content = self.uploader.get_content(
+                                            remote_descriptor=file.remote_desc)
+                filesystem.create_file(
+                        path=os.path.join(settings.settings['sync_file'], 
+                                                            file.relative_path),
+                        name=file.name, 
+                        content=content)
+            
     def visit_path(self):
+        #Deprecated?
         """
         Visit path and create summary file in binary
         """
@@ -74,17 +171,17 @@ class Backup(object):
 
             #For each files
             for fil in files:
-                print "SUBO %s a %s" % (fil ,actual_remote_folder)
+                #print "SUBO %s a %s" % (fil ,actual_remote_folder)
                 file_path = os.path.join(root, fil) 
-                print "ORIGEN %s" % file_path
+                #print "ORIGEN %s" % file_path
                 #print file_path
-                self.uploader.upload(actual_remote_folder, file_path)
-            
+                rem_desc = self.uploader.upload(actual_remote_folder, file_path)
+                
             #For each subfolder
             for subfolder in subfolders:
-                print "CREO carpeta %s" % actual_remote_folder+'/'+subfolder
+                #print "CREO carpeta %s" % actual_remote_folder+'/'+subfolder
                 folder = os.path.join(actual_remote_folder, subfolder)
-                self.uploader.mkdir(folder)
+                rem_desc = self.uploader.mkdir(folder)
             level += 1
             print ('*'*80)
 
