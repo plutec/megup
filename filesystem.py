@@ -186,6 +186,7 @@ class FileObject(object):
         to_ret['path'] = self.path
         to_ret['level'] = self.level
         to_ret['relative_path'] = self.relative_path
+        to_ret['remote_desc'] = self.remote_desc
         to_ret['hash'] = self.hash
         to_ret['type'] = self.type
         if hasattr(self, 'status'):
@@ -228,3 +229,29 @@ class FileObject(object):
             self.type = 'FOLDER'
         else:
             self.type = 'FILE'
+
+def os_mkdir(path):
+    print "MKDIR: %s" % path
+    try:
+        os.makedirs(path)
+    except:
+        print "Ya existe el directorio, pasando"
+        pass
+
+def create_file(path, name, content):
+    print "FOR FILE %s in path %s" % (name, path)
+    try:
+        os.makedirs(path) #First, directory
+    except:
+        print "Already exists, do nothing with dir %s" % path
+        pass
+
+    try:
+        #print "CREANDO %s" % name
+        desc = open(os.path.join(path,name), 'wb')
+        desc.write(content)
+        desc.close()
+    except:
+        print "Error saving file %s" % name
+        pass
+    print "FIN"

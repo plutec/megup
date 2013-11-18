@@ -108,7 +108,10 @@ class UploaderMega(object):
                 parent_desc = exists[0]
         return parent_desc
 
-
+    def get_content(self, remote_descriptor):
+        file_desc = self.mega.download_by_desc(file=remote_descriptor, 
+                                                            in_descriptor=True)
+        return file_desc.read()
     def exists_dir(self, dirname):
         """
         Check if a directory exists in mega

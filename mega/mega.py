@@ -326,6 +326,23 @@ class Mega(object):
                 files_dict[file['h']] = processed_file
         return files_dict
 
+    def get_file(self, descriptor):
+        """
+        Get file information, given a only a descriptor
+        """
+        #TODO ahora mismo hace una peticion de todos los archivos. Mejorar
+        files = self._api_request({'a': 'f', 'c': 1})
+        to_ret = {}
+        shared_keys = {}
+        self._init_shared_keys(files, shared_keys)
+        for file in files['f']:
+            processed_file = self._process_file(file, shared_keys)
+            #ensure each file has a name before returning
+            if processed_file['a'] and file['h'] == descriptor:
+                return (processed_file['h'], processed_file)
+        return None
+        
+
     def get_upload_link(self, file):
         """
         Get a files public link inc. decrypted key
@@ -513,7 +530,22 @@ class Mega(object):
                                 dest_filename=dest_filename, is_public=False, in_descriptor=in_descriptor)
         if in_descriptor:
             return to_ret
-
+    
+    def download_by_desc(self, remote_descriptor):
+        """
+        Download a file, given a descriptor, return a file descriptor, ready for read
+        Params:
+            self, the object
+            remote_descriptor, str with a remote descriptor.
+        Return:
+            File object
+        """
+        #First, get complete definition
+        file = self.get_file(remote_descriptor)
+        if file:
+            return self.download(file=file, in_descriptor=True)
+        return None        
+    
     def download_url(self, url, dest_path=None, dest_filename=None):
         """
         Download a file by it's public url
@@ -548,6 +580,7 @@ class Mega(object):
             raise RequestError('File not accessible anymore')
         file_url = file_data['g']
         file_size = file_data['s']
+        print "FILE SIZE: %d" % file_size
         attribs = base64_url_decode(file_data['at'])
         attribs = decrypt_attr(attribs, k)
 
@@ -556,16 +589,16 @@ class Mega(object):
         else:
             file_name = attribs['n']
         #print file_url
-        retries = 4
-        ok = False
-        while not ok and retries:
-            try:
-                input_file = requests.get(file_url, stream=True, timeout=1).raw
-                ok = True
-            except:
-                ok = False
-                retries -= 1
-                print "RETRY %s" %retries
+        #retries = 4
+        #ok = False
+        #while not ok and retries:
+        #    try:
+        input_file = requests.get(file_url, stream=True, timeout=1).raw
+        #        ok = True
+        #    except:
+        #        ok = False
+        #        retries -= 1
+        #        print "RETRY %s" %retries
         #print input_file
         if dest_path is None:
             dest_path = ''
@@ -581,6 +614,7 @@ class Mega(object):
         mac_str = '\0' * 16
         mac_encryptor = AES.new(k_str, AES.MODE_CBC, mac_str)
         iv_str = a32_to_str([iv[0], iv[1], iv[0], iv[1]])
+        #if file_size > 0:
         for chunk_start, chunk_size in get_chunks(file_size):
             chunk = input_file.read(chunk_size)
             chunk = aes.decrypt(chunk)
@@ -608,11 +642,11 @@ class Mega(object):
                 print('{0} of {1} downloaded'.format(file_info.st_size, file_size))
 
         file_mac = str_to_a32(mac_str)
-
+    
         temp_output_file.close()
 
         # check mac integrity
-        if (file_mac[0] ^ file_mac[1], file_mac[2] ^ file_mac[3]) != meta_mac:
+        if file_size > 0 and (file_mac[0] ^ file_mac[1], file_mac[2] ^ file_mac[3]) != meta_mac:
             raise ValueError('Mismatched mac')
         if in_descriptor:
             to_ret = open(temp_output_file.name, 'rb')
