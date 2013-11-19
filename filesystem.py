@@ -99,11 +99,11 @@ def compare_fs(actual_fs, old_fs):
         #print file.path
         res = actual_fs.find_by_path(file.path)
         if not res:
-            if file.type == 'FOLDER':
+            if file.type == FOLDER:
                 #print "REMOVED FOLDER %s" % file # Running ok
                 to_ret['removed_folders'].append(file)
                 file.status = REMOVED
-            elif file.type == 'FILE':
+            elif file.type == FILE:
                 #print "REMOVED FILE %s" % file # Running ok
                 to_ret['removed_files'].append(file)
                 file.status = REMOVED
@@ -126,7 +126,7 @@ def compare_fs(actual_fs, old_fs):
                 #print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO, PASANDO"
         else:
             #print "PATH CHECK"
-            if file.type == 'FOLDER':
+            if file.type == FOLDER:
                 res = actual_fs.find_by_path(file.path)
                 if res:
                     #print "FOLDER FOUND"
@@ -143,7 +143,7 @@ def compare_fs(actual_fs, old_fs):
             file.status = NEW
             if file.type == 'FOLDER':
                 to_ret['new_folders'].append(file)
-            elif file.type == 'FILE':
+            elif file.type == FILE:
                 #print "NUEVO: %s" % file
                 to_ret['new_files'].append(file)
 
