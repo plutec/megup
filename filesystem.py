@@ -3,6 +3,7 @@ import os
 import sys
 import stat
 import pickle
+import time
 
 #Statics
 REMOVED = 0
@@ -15,6 +16,7 @@ FILE = 'FILE' #TODO Change to number
 class FileSystem(object):
 
     files = None
+    generate_time = None
 
     def __init__(self, initial_path):
         self.files = list() #Must be a tree
@@ -51,7 +53,7 @@ class FileSystem(object):
                         level=level)
                 self.files.append(file_obj)
             level += 1
-
+        self.generate_time = time.gmtime()
     def find_by_path(self, path):
         #Only one
         for file in self.files:
