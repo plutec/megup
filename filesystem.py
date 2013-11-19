@@ -16,7 +16,6 @@ FILE = 'FILE' #TODO Change to number
 class FileSystem(object):
 
     files = None
-    generate_time = None
 
     def __init__(self, initial_path):
         self.files = list() #Must be a tree
@@ -53,7 +52,7 @@ class FileSystem(object):
                         level=level)
                 self.files.append(file_obj)
             level += 1
-        self.generate_time = time.gmtime()
+
     def find_by_path(self, path):
         #Only one
         for file in self.files:
@@ -183,17 +182,16 @@ class FileObject(object):
     level = None
     hash = None
     type = None
+    change_time = None
 
     def __init__(self, path, relative_path, level):
         self.path = path
         self.relative_path = relative_path
-        self.level = level#len(path.split('/'))
+        self.level = level
         self.calcule_hash()
         self.calcule_type()
-        #if self.type == 'FILE':
         self.name = path.split('/')[-1]
-        #else:
-        #    self.name = ''
+        self.last_modified = os.stat(self.path).st_mtime
 
     def __str__(self):
         to_ret = dict()
@@ -204,11 +202,21 @@ class FileObject(object):
         to_ret['remote_desc'] = self.remote_desc
         to_ret['hash'] = self.hash
         to_ret['type'] = self.type
+        to_ret['last_modified'] = self.last_modified
         if hasattr(self, 'status'):
             to_ret['STATUS'] = self.status
 
         return str(to_ret)
+    def __gt__(self, other):
+        if self.last_modified > other.last_modified:
+            return True
+        return False
 
+    def __lt__(self, other):
+        if self.last_modified < other.last_modified:
+            return True
+        return False
+        
     def __eq__(self, other):
         if self.name != other.name:
             return False
@@ -219,6 +227,8 @@ class FileObject(object):
         if self.hash != other.hash:
             return False
         if self.type != other.type:
+            return False
+        if self.last_modified != other.last_modified:
             return False
         return True
 
