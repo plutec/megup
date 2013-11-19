@@ -238,7 +238,7 @@ def os_empty_dir(path):
     try:
         to_ret = os.listdir(path)
     except:
-        return False
+        return True
     if not to_ret:
         return True
     return False

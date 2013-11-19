@@ -4,54 +4,77 @@ import os
 import filesystem
 
 class Backup(object):
-
-    recursive = None
-    path = None
-    uploader = None
-    actual_filesystem = None
-    remote_filesystem = None
-
-    def __init__(self, path):
+    """
+    Class used to make a backup, in other words, the "kernel".
+    """
+    def __init__(self):
+        """
+        Constructor. It used settings file
+        """
         self.recursive = True
-        self.path = path
         self.uploader = uploader.UploaderMega()
-        self.now_path = path #Is it used?
         self.actual_filesystem = filesystem.FileSystem(
-                                    initial_path=self.path)
+                                    initial_path=settings.settings['sync_file'])
+        self.remote_filesystem = None
+        # Modes
         self.initial_backup_mode = False
         self.remote_home_mode = False
         self.resync_mode = False
         self.unknown_mode = False
 
     def detect_mode(self):
+        """
+        This method, depends of remote repository, and local folder, decides 
+        the backup mode
+        """
         #Initial backup, when in mega doesn't exist anything.
         #Check remote_folder and summary_file exists, else, is initial backup
         remote = self.uploader.find_folder(settings.settings['remote_folder'])
         summary = self.uploader.get_file(
                                     filename=settings.settings['summary_file'], 
                                     path=settings.settings['remote_folder'])
-        if not remote or not summary:
-            self.initial_backup_mode = True
-            return
-        #Resync, when in mega exists something and in home too.
         empty_dir = filesystem.os_empty_dir(settings.settings['sync_file'])
-        if summary and not empty_dir:
-            self.resync_mode = True
+
+
+        if not remote and not summary:
+            if not empty_dir:
+                print "INITIAL BACKUP 1"
+                self.initial_backup_mode = True
+                return
+            else:
+                print "UNKNOWN MODE 1"
+                self.unknown_mode = True
+                return
+        #Resync, when in mega exists something and in home too.
+        if summary:
+            if not empty_dir:
+                print "RESYNC 1"
+                self.resync_mode = True
+                return
         #Remote-home, when mega has content and local folder is empty or doesn't exist.
         #Check if mega has sumary file (previous check is valid)
         #Check if local folder exists or is empty
-            #exists_local = filesystem.os_exists_dir(settings.settings['sync_file'])
+        #exists_local = filesystem.os_exists_dir(settings.settings['sync_file'])
             if empty_dir:#exists_local:
+                print "REMOTE HOME 1"
                 self.remote_home_mode = True
-            else:
-                self.unknown_mode = True
+                return
         else:
+            print "UNKNOWN MODE 2"
             self.unknown_mode = True
 
 
     def run(self, options=None):
+        """
+        This method is the main function in this class.
+        Pre:
+            - Previous execution of detect_mode() method.
+        Return:
+            None
+        """
         if self.initial_backup_mode:
             print "INITIAL BACKUP MODE"
+
             print "0 - PREPARA BACKUP"
             self.prepare_to_init_backup()
 
@@ -66,14 +89,14 @@ class Backup(object):
 
         elif self.remote_home_mode:
             print "REMOTE_HOME MODE"
-            return
+
             print "1 - LOAD REMOTE FS"
             self.get_remote_fs_struct()
             print "2 - SYNC REMOTE HOME"
             self.sync_remote_home()
         elif self.resync_mode: # Reprocess
             print "RESYNC"
-            return
+
             print "1 - LOAD REMOTE FS"
             self.get_remote_fs_struct()
 
@@ -94,10 +117,14 @@ class Backup(object):
             print "UNKNOWN MODE, existing..."
     def upload_all(self):
         """
-        Upload a complete FileSystem
-        Params:
-            fs: FileSystem object
+        Upload a complete local FileSystem
+        Pre:
+            - self.actual_filesystem is set. This is possible, calling the 
+              method filesystem.generate()
+        Return:
+            None            
         """
+
         for file in self.actual_filesystem.files:
             if file.type == filesystem.FOLDER:
                 if file.relative_path == '/':
@@ -115,9 +142,17 @@ class Backup(object):
                 file.remote_desc = rem_desc
 
     def prepare_to_init_backup(self):
+        """
+        This method is used to prepare remote folder (in Mega) to ake a backup
+        """
+
         self.uploader.mkdir(settings.settings['remote_folder'])
 
     def process_changes_in_remote(self, changes):
+        """
+        This method is used to changes changes in Mega (synchronize).
+        """
+
         print "PROCESANDO CAMBIOS EN REMOTO"
         
         print "Removing files..."
