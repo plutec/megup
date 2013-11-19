@@ -149,15 +149,28 @@ def compare_fs(actual_fs, old_fs):
     return to_ret
 
 def load_filesystem(filename):
+    """
+    Load a FileSystem object from a file
+    Params:
+        - filename, str with the complete path of object. This maybe contains 
+            a FileSystem serialized with pickle
+    Return:
+        FileSystem object in memory.
+    """
     descriptor = open(filename, 'rb')
     obj = pickle.load(descriptor)
     descriptor.close()
     return obj
 
 def load_filesystem_descriptor(descriptor):
-    #descriptor = open(filename, 'rb')
+    """
+    Load a FileSystem object from a descriptor
+    Params:
+        - descriptor, File object with FileSystem object serialized with pickle
+    Return:
+        FileSystem object in memory.
+    """
     obj = pickle.load(descriptor)
-    #descriptor.close()
     return obj
 
 class FileObject(object):
