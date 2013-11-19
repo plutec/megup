@@ -28,41 +28,44 @@ class Backup(object):
         the backup mode
         """
         #Initial backup, when in mega doesn't exist anything.
-        #Check remote_folder and summary_file exists, else, is initial backup
+        #Resync, when in mega exists something and in home too.
+        #Remote-home, when mega has content and local folder is empty 
+            #or doesn't exist.
         remote = self.uploader.find_folder(settings.Settings().get('remote_folder'))
         summary = self.uploader.get_file(
                                     filename=settings.Settings().get('summary_file'),
                                     path=settings.Settings().get('remote_folder'))
         empty_dir = filesystem.os_empty_dir(settings.Settings().get('sync_file'))
-
-
-        if not remote and not summary:
-            if not empty_dir:
-                print "INITIAL BACKUP 1"
-                self.initial_backup_mode = True
-                return
-            else:
-                print "UNKNOWN MODE 1"
-                self.unknown_mode = True
-                return
-        #Resync, when in mega exists something and in home too.
-        if summary:
-            if not empty_dir:
-                print "RESYNC 1"
-                self.resync_mode = True
-                return
-        #Remote-home, when mega has content and local folder is empty or doesn't exist.
-        #Check if mega has sumary file (previous check is valid)
-        #Check if local folder exists or is empty
-        #exists_local = filesystem.os_exists_dir(settings.settings['sync_file'])
-            if empty_dir:#exists_local:
-                print "REMOTE HOME 1"
-                self.remote_home_mode = True
-                return
-        else:
+        print "REMOTE", remote
+        print "SUMMARY", summary
+        print "EMPTY DIR", empty_dir
+        if remote and summary and empty_dir: #(000)
+            print "REMOTE HOME 1"
+            self.remote_home_mode = True
+        elif remote and summary and not empty_dir: #(001)
+            print "RESYNC 1"
+            self.resync_mode = True
+        elif remote and not summary and empty_dir: #(010)
+            print "UNKNOWN MODE 1"
+            self.unknown_mode = True
+        elif remote and not summary and not empty_dir: #(011)
+            print "INITIAL BACKUP 1"
+            self.initial_backup_mode = True
+        elif not remote and summary and empty_dir: #(100)
+            #Impossible
             print "UNKNOWN MODE 2"
             self.unknown_mode = True
-
+        elif not remote and summary and not empty_dir: #(101)
+            #Impossible
+            print "UNKNOWN MODE 3"
+            self.unknown_mode = True
+        elif not remote and not summary and empty_dir: #(110)
+            print "UNKNOWN MODE 4"
+            self.unknown_mode = True
+        elif not remote and not summary and not empty_dir: #(111)
+            print "INITIAL BACKUP 2"
+            self.initial_backup_mode = True
+        
 
     def run(self, options=None):
         """

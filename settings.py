@@ -21,7 +21,7 @@ class Settings(object):
             cls._instance = super(Settings, cls).__new__(
                                 cls, *args, **kwargs)
         return cls._instance
-
+    
     def get(self, key):
         if self.settings.has_key(key):
             return self.settings[key]
