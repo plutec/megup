@@ -16,9 +16,10 @@ def parsing_args():
 
 def main():
     b = backup.Backup(settings.settings['sync_file'])
-    b.is_initial_backup()
+    b.detect_mode()
+    #b.is_initial_backup()
     #b.remote_home_backup = True
-    b.run()
+    #b.run()
 
 if __name__ == '__main__':
     options = parsing_args()

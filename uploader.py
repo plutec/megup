@@ -64,10 +64,13 @@ class UploaderMega(object):
             #print "FILE %s/%s NOT FOUND FOR DELETE" % (path, filename)
             return False
     def get_file(self, filename, path):
+        to_ret = None
         #Find parent
         parent_desc = self.mega.find_path_descriptor(path=path)
+        #print parent_desc
         #Find filename in parent
-        to_ret = self.mega.find(filename=filename, parent=parent_desc)
+        if parent_desc:
+            to_ret = self.mega.find(filename=filename, parent=parent_desc)
         return to_ret
 
     def get_user_info(self):
@@ -86,7 +89,7 @@ class UploaderMega(object):
         Return:
             dictionary with information about the folder
         """
-        return self.mega.find_folder(foldername)
+        return self.mega.find_folder(foldername, parent=self.mega.get_root_descriptor())
         
     def mkdir(self, dirname):
         """
@@ -119,6 +122,7 @@ class UploaderMega(object):
         return self.mega.download(file=file_info, in_descriptor=True)
 
     def exists_dir(self, dirname):
+        #deprecated, we have uploader.find_folder()
         """
         Check if a directory exists in mega
         Params:

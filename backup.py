@@ -24,6 +24,22 @@ class Backup(object):
     def is_initial_backup(self):
         self.initial_backup = True
 
+    def detect_mode(self):
+        #Initial backup, when in mega doesn't exist anything.
+        #Check remote_folder and summary_file exists, else, is initial backup
+        remote = self.uploader.find_folder(settings.settings['remote_folder'])
+        summary = self.uploader.get_file(
+                                    filename=settings.settings['summary_file'], 
+                                    path=settings.settings['remote_folder'])
+        if not remote or not summary:
+            print "Is initial backup"
+            self.is_initial_backup()
+        
+        #Resync, when in mega exists something and in home too.
+        
+        #Remote-home, when mega has content and local folder is empty or doesn't exist.
+        
+
     def run(self, options=None):
         if self.initial_backup:
             print "0 - PREPARA BACKUP"
