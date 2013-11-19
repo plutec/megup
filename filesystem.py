@@ -230,6 +230,19 @@ class FileObject(object):
         else:
             self.type = 'FILE'
 
+
+def os_exists_dir(path):
+    return os.path.lexists(path)
+
+def os_empty_dir(path):
+    try:
+        to_ret = os.listdir(path)
+    except:
+        return False
+    if not to_ret:
+        return True
+    return False
+
 def os_mkdir(path):
     print "MKDIR: %s" % path
     try:

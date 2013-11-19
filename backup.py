@@ -21,9 +21,6 @@ class Backup(object):
         self.initial_backup = False
         self.remote_home_backup = False
 
-    def is_initial_backup(self):
-        self.initial_backup = True
-
     def detect_mode(self):
         #Initial backup, when in mega doesn't exist anything.
         #Check remote_folder and summary_file exists, else, is initial backup
@@ -33,15 +30,32 @@ class Backup(object):
                                     path=settings.settings['remote_folder'])
         if not remote or not summary:
             print "Is initial backup"
-            self.is_initial_backup()
-        
+            self.initial_backup = True
+            return
         #Resync, when in mega exists something and in home too.
-        
+        #TODO
+
         #Remote-home, when mega has content and local folder is empty or doesn't exist.
-        
+        #Check if mega has sumary file (previous check is valid)
+        if summary:
+        #Check if local folder exists or is empty
+            exists_local = filesystem.os_exists_dir(settings.settings['sync_file'])
+            if exists_local:
+                #Empty folder?
+                empty_dir = filesystem.os_empty_dir(settings.settings['sync_file'])
+                if empty_dir:
+                    self.remote_home = True
+                else:
+                    self.unknown_mode = True
+            else:
+                self.remote_home = True
+        else:
+            self.unknown_mode = True
+
 
     def run(self, options=None):
         if self.initial_backup:
+            print "INITIAL BACKUP MODE"
             print "0 - PREPARA BACKUP"
             self.prepare_to_init_backup()
 
@@ -54,7 +68,9 @@ class Backup(object):
             print "6 - ACTUALIZA FS REMOTO"
             self.upload_actual_fs_struct()
 
-        elif self.remote_home_backup:
+        elif self.remote_home:
+            print "REMOTE_HOME MODE"
+            return
             print "1 - LOAD REMOTE FS"
             self.get_remote_fs_struct()
             print "2 - SYNC REMOTE HOME"

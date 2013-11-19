@@ -19,7 +19,7 @@ def main():
     b.detect_mode()
     #b.is_initial_backup()
     #b.remote_home_backup = True
-    #b.run()
+    b.run()
 
 if __name__ == '__main__':
     options = parsing_args()
