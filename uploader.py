@@ -55,9 +55,6 @@ class UploaderMega(object):
         #First, find file
         desc = self.get_file(path=path, filename=filename)
         if desc:
-            print path
-            print filename
-            print desc
             self.mega.destroy(desc)
             return True
         else:

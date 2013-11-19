@@ -36,9 +36,7 @@ class Backup(object):
                                     filename=settings.Settings().get('summary_file'),
                                     path=settings.Settings().get('remote_folder'))
         empty_dir = filesystem.os_empty_dir(settings.Settings().get('sync_file'))
-        print "REMOTE", remote
-        print "SUMMARY", summary
-        print "EMPTY DIR", empty_dir
+        
         if remote and summary and empty_dir: #(000)
             print "REMOTE HOME 1"
             self.remote_home_mode = True
@@ -158,9 +156,9 @@ class Backup(object):
 
         print "PROCESANDO CAMBIOS EN REMOTO"
         
-        print "Removing files..."
         remove_files = changes['removed_files']
         for file in remove_files:
+            print "Removing file %s" % file
             status = self.uploader.remove(
                 path='%s/%s' % (settings.Settings().get('remote_folder'), #TODO changes for os.path.join
                                 file.relative_path),
@@ -172,21 +170,30 @@ class Backup(object):
 
         remove_folders = changes['removed_folders']
         #TODO
-        print "Uploading new files..."
+
         new_files = changes['new_files']
         for file in new_files:
+            print "Uploading file %s" % file
             remote_folder = '%s/%s' % (settings.Settings().get('remote_folder'),
                                 file.relative_path)
             rem_desc = self.uploader.upload(remote_folder, file.path)
 
-        print "Creating remote folders..."
         new_folders = changes['new_folders']
         for folder in new_folders:
+            print "Creating remote folder %s" % folder
             print folder
             remote_folder = '%s/%s' % (settings.Settings().get('remote_folder'),
                                        folder.name)
             rem_desc = self.uploader.mkdir(remote_folder)
-        #print changes
+        
+        to_download = changes['to_download']
+        for file in to_download:
+            print "TO DOWNLOAD %s" % file
+
+        to_upload = changes['to_upload']
+        for file in to_upload:
+            print "TO UPLOAD %s" % file
+
 
     def upload_actual_fs_struct(self):
         #Debe reemplazar el antiguo si lo hay

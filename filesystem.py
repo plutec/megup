@@ -10,8 +10,10 @@ REMOVED = 0
 NEW = 1
 RENAMED = 2
 THE_SAME = 3
-FOLDER = 'FOLDER' #TODO Change to number
-FILE = 'FILE' #TODO Change to number
+FOLDER = 4
+FILE = 5
+NEWEST = 6
+OLDEST = 7
 
 class FileSystem(object):
 
@@ -87,45 +89,60 @@ class FileSystem(object):
 
 
 def compare_fs(actual_fs, old_fs):
-    # TODO this is complicate... :P
-    # Renombramientos: mismo hash, distinto path
-    # First, the removed
+
     to_ret = dict()
     to_ret['removed_files'] = list()
     to_ret['removed_folders'] = list()
     to_ret['new_files'] = list()
     to_ret['new_folders'] = list()
+    to_ret['to_upload'] = list()
+    to_ret['to_download'] = list()
+
     for file in old_fs.files:
-        #print file.path
         res = actual_fs.find_by_path(file.path)
-        if not res:
+        if not res: #If path not found, removed.
             if file.type == FOLDER:
-                #print "REMOVED FOLDER %s" % file # Running ok
                 to_ret['removed_folders'].append(file)
                 file.status = REMOVED
             elif file.type == FILE:
-                #print "REMOVED FILE %s" % file # Running ok
                 to_ret['removed_files'].append(file)
                 file.status = REMOVED
-        elif file.hash:
+        elif file.hash: #If is a file
             res = actual_fs.find_by_hash(file.hash)
-            if res:
+            if res: #If has the same hash
                 file2 = None
-                for file2 in res:
-                    if file == file2:
-                        res = file2
-                if file2:
-                    #print "FOUND, EXACTLY EQUAL"
+                for file_it in res:
+                    if file == file_it:
+                        file2 = file_it
+                        break
+                if file2: #The same file, all right
                     file.status = THE_SAME
-                    res.status = THE_SAME
-                else:
+                    file2.status = THE_SAME
+                else: #Maybe changed?
                     pass
                     #print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
-            else:
-                pass
-                #print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO, PASANDO"
-        else:
-            #print "PATH CHECK"
+            else: #If not has the same hash, which is the newest?
+                #Find by path
+                res = actual_fs.find_by_path(file.path)
+                if res:
+                    file2 = None
+                    for file3 in res:
+                        if file.path == file3.path:
+                            file2 = file3
+                            break
+                    if file2: #The same path, but different hash
+                        print "SAME PATH, DIFFERENT HASH"
+                        print file
+                        print file2
+                        if file > file2:
+                            file.status = NEWEST
+                            file2.status = OLDEST
+                            to_ret['to_download'].append(file)
+                        elif file < file2:
+                            file.status = OLDEST
+                            file2.status = NEWEST
+                            to_ret['to_upload'].append(file2)
+        else: #If is a folder
             if file.type == FOLDER:
                 res = actual_fs.find_by_path(file.path)
                 if res:
@@ -141,7 +158,7 @@ def compare_fs(actual_fs, old_fs):
     for file in actual_fs.files:
         if not hasattr(file, 'status'):
             file.status = NEW
-            if file.type == 'FOLDER':
+            if file.type == FOLDER:
                 to_ret['new_folders'].append(file)
             elif file.type == FILE:
                 #print "NUEVO: %s" % file
@@ -251,9 +268,9 @@ class FileObject(object):
 
         mode = os.stat(os.path.join(self.path)).st_mode
         if stat.S_ISDIR(mode):
-            self.type = 'FOLDER'
+            self.type = FOLDER
         else:
-            self.type = 'FILE'
+            self.type = FILE
 
 
 def os_exists_dir(path):

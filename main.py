@@ -17,9 +17,11 @@ def parsing_args():
 def main():
     b = backup.Backup()
     b.detect_mode()
+    b.run()
+    
+
     #b.is_initial_backup()
     #b.remote_home_backup = True
-    b.run()
 
 if __name__ == '__main__':
     options = parsing_args()
