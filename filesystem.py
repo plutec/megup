@@ -126,10 +126,8 @@ def compare_fs(actual_fs, old_fs):
                 res = actual_fs.find_by_path(file.path)
                 if res:
                     file2 = None
-                    for file3 in res:
-                        if file.path == file3.path:
-                            file2 = file3
-                            break
+                    if file.path == res.path:
+                        file2 = res
                     if file2: #The same path, but different hash
                         print "SAME PATH, DIFFERENT HASH"
                         print file
