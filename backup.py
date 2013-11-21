@@ -196,11 +196,8 @@ class Backup(object):
 
 
     def upload_actual_fs_struct(self):
-        #Debe reemplazar el antiguo si lo hay
         self.actual_filesystem.dump_to_file('fs.dmp')
-        #remote_folder = '%s/%s' % (settings.settings['remote_folder'], 
-        #                           settings.settings['summary_file'])
-        #rem_desc = self.uploader.upload(remote_folder, 'fs.dmp')
+        
         rem_desc = self.uploader.upload_raw(
                                     path=settings.Settings().get('remote_folder'),
                                     filename=settings.Settings().get('summary_file'),

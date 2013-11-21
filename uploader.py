@@ -26,6 +26,8 @@ class UploaderMega(object):
         Return:
             Nothing
         """
+        #Previously, delete if exists
+        self.remove(path=path, filename=filename)
         # Save in mega in folder 'path' with the original name
         folder = self.mega.find_path_descriptor(path)
         if not folder:
@@ -44,6 +46,9 @@ class UploaderMega(object):
             filename, string with the desire remote name
             raw, str with bytes
         """
+        #Previously, delete if exists
+        self.remove(path=path, filename=filename)
+        #Then...
         folder = self.mega.find_path_descriptor(path)
         if not folder:
             folder = self.mkdir(path)
@@ -55,7 +60,7 @@ class UploaderMega(object):
         #First, find file
         desc = self.get_file(path=path, filename=filename)
         if desc:
-            self.mega.destroy(desc)
+            self.mega.destroy(desc[0])
             return True
         else:
             #print "FILE %s/%s NOT FOUND FOR DELETE" % (path, filename)
