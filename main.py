@@ -1,5 +1,4 @@
-import backup
-import settings
+from core import backup, settings
 import argparse
 
 def parsing_args():

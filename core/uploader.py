@@ -1,4 +1,4 @@
-import settings
+from core import settings
 import mega as mega_library
 
 class UploaderMega(object):

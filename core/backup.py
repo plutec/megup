@@ -1,7 +1,6 @@
-import settings
-import uploader
+from core import settings, uploader, filesystem
 import os
-import filesystem
+
 
 class Backup(object):
 
