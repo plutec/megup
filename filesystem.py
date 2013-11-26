@@ -3,14 +3,17 @@ import os
 import sys
 import stat
 import pickle
+import time
 
 #Statics
 REMOVED = 0
 NEW = 1
 RENAMED = 2
 THE_SAME = 3
-FOLDER = 'FOLDER' #TODO Change to number
-FILE = 'FILE' #TODO Change to number
+FOLDER = 4
+FILE = 5
+NEWEST = 6
+OLDEST = 7
 
 class FileSystem(object):
 
@@ -20,12 +23,15 @@ class FileSystem(object):
         self.files = list() #Must be a tree
         self.path = initial_path
 
-    def _convert_to_relative_path(self, path):
-        to_ret = '/'
+    def _extract_relative_path(self, path):
+        to_ret = ''
         if path.find(self.path) == 0:
             to_ret = path[len(self.path):]
-        if to_ret == '':
-            to_ret = '/'
+        if not to_ret:
+            to_ret = ''
+        #elif to_ret[-1] != '/':
+        #    to_ret = '%s/' % to_ret
+
         return to_ret
     
     def generate(self):
@@ -36,7 +42,7 @@ class FileSystem(object):
             for file_name in files:
                 file_path = os.path.join(root, file_name) 
                 file_obj = FileObject(
-                        relative_path=self._convert_to_relative_path(root), 
+                        relative_path=self._extract_relative_path(root), 
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
@@ -46,18 +52,29 @@ class FileSystem(object):
                 file_path = os.path.join(root,subfolder)
                 #print "SUBFOLDER %s" % subfolder
                 file_obj = FileObject(
-                        relative_path=self._convert_to_relative_path(root), 
+                        relative_path=self._extract_relative_path(root), 
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
             level += 1
 
-    def find_by_path(self, path):
-        #Only one
+        print "ARBOL GENERADO"
         for file in self.files:
-            if path == file.path:
-                return file
-        return None
+            print file
+
+    def find_by_path(self, path, filetype=None):
+        #Several files
+        to_ret = list()
+        if filetype:
+            for file in self.files:
+                if path == file.relative_path and file.type == filetype:
+                    to_ret.append(file)
+        else:
+            for file in self.files:
+                if path == file.relative_path:
+                    to_ret.append(file)
+        
+        return to_ret[0] #TODO Fix
 
     def find_by_hash(self, hash):
         #Maybe more than one
@@ -86,47 +103,65 @@ class FileSystem(object):
 
 
 def compare_fs(actual_fs, old_fs):
-    # TODO this is complicate... :P
-    # Renombramientos: mismo hash, distinto path
-    # First, the removed
+
     to_ret = dict()
     to_ret['removed_files'] = list()
     to_ret['removed_folders'] = list()
     to_ret['new_files'] = list()
     to_ret['new_folders'] = list()
+    to_ret['to_upload'] = list()
+    to_ret['to_download'] = list()
+
+    #for file in old_fs.files:
+    #    print file
+    #print "FIN ARBOL ANTIGUO"
+    #return to_ret
     for file in old_fs.files:
-        #print file.path
-        res = actual_fs.find_by_path(file.path)
-        if not res:
-            if file.type == 'FOLDER':
-                #print "REMOVED FOLDER %s" % file # Running ok
+        res = actual_fs.find_by_path(file.relative_path)
+        if not res: #If path not found, removed.
+            print "NO EXISTE, eliminar! %s" % file
+            if file.type == FOLDER:
                 to_ret['removed_folders'].append(file)
                 file.status = REMOVED
-            elif file.type == 'FILE':
-                #print "REMOVED FILE %s" % file # Running ok
+            elif file.type == FILE:
                 to_ret['removed_files'].append(file)
                 file.status = REMOVED
-        elif file.hash:
+        elif file.hash: #If is a file
             res = actual_fs.find_by_hash(file.hash)
-            if res:
+            if res: #If has the same hash
                 file2 = None
-                for file2 in res:
-                    if file == file2:
-                        res = file2
-                if file2:
-                    #print "FOUND, EXACTLY EQUAL"
+                for file_it in res:
+                    if file == file_it:
+                        file2 = file_it
+                        break
+                if file2: #The same file, all right
                     file.status = THE_SAME
-                    res.status = THE_SAME
-                else:
+                    file2.status = THE_SAME
+                else: #Maybe changed?
                     pass
                     #print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
-            else:
-                pass
-                #print "NO EXISTE CON EL MISMO HASH, BORRADO/RENOMBRADO, PASANDO"
-        else:
-            #print "PATH CHECK"
-            if file.type == 'FOLDER':
-                res = actual_fs.find_by_path(file.path)
+            else: #If not has the same hash, which is the newest?
+                #Find by path
+                res = actual_fs.find_by_path(file.relative_path)
+                if res:
+                    file2 = None
+                    if file.relative_path == res.relative_path:
+                        file2 = res
+                    if file2: #The same path, but different hash
+                        #print "SAME PATH, DIFERENT HASHES"
+                        #print file
+                        #print file2
+                        if file > file2:
+                            file.status = NEWEST
+                            file2.status = OLDEST
+                            to_ret['to_download'].append(file)
+                        elif file < file2:
+                            file.status = OLDEST
+                            file2.status = NEWEST
+                            to_ret['to_upload'].append(file2)
+        else: #If it is a folder
+            if file.type == FOLDER:
+                res = actual_fs.find_by_path(file.relative_path)
                 if res:
                     #print "FOLDER FOUND"
                     file.status = THE_SAME
@@ -140,45 +175,58 @@ def compare_fs(actual_fs, old_fs):
     for file in actual_fs.files:
         if not hasattr(file, 'status'):
             file.status = NEW
-            if file.type == 'FOLDER':
+            if file.type == FOLDER:
                 to_ret['new_folders'].append(file)
-            elif file.type == 'FILE':
+            elif file.type == FILE:
                 #print "NUEVO: %s" % file
                 to_ret['new_files'].append(file)
 
     return to_ret
 
 def load_filesystem(filename):
+    """
+    Load a FileSystem object from a file
+    Params:
+        - filename, str with the complete path of object. This maybe contains 
+            a FileSystem serialized with pickle
+    Return:
+        FileSystem object in memory.
+    """
     descriptor = open(filename, 'rb')
     obj = pickle.load(descriptor)
     descriptor.close()
     return obj
 
 def load_filesystem_descriptor(descriptor):
-    #descriptor = open(filename, 'rb')
+    """
+    Load a FileSystem object from a descriptor
+    Params:
+        - descriptor, File object with FileSystem object serialized with pickle
+    Return:
+        FileSystem object in memory.
+    """
     obj = pickle.load(descriptor)
-    #descriptor.close()
     return obj
 
 class FileObject(object):
 
     path = None
+    relative_path = None
     name = None
     remote_desc = None
     level = None
     hash = None
     type = None
+    change_time = None
 
     def __init__(self, path, relative_path, level):
         self.path = path
         self.relative_path = relative_path
-        self.level = level#len(path.split('/'))
+        self.level = level
         self.calcule_hash()
         self.calcule_type()
-        #if self.type == 'FILE':
         self.name = path.split('/')[-1]
-        #else:
-        #    self.name = ''
+        self.last_modified = os.stat(self.path).st_mtime
 
     def __str__(self):
         to_ret = dict()
@@ -189,21 +237,33 @@ class FileObject(object):
         to_ret['remote_desc'] = self.remote_desc
         to_ret['hash'] = self.hash
         to_ret['type'] = self.type
+        to_ret['last_modified'] = self.last_modified
         if hasattr(self, 'status'):
             to_ret['STATUS'] = self.status
 
         return str(to_ret)
+    def __gt__(self, other):
+        if self.last_modified > other.last_modified:
+            return True
+        return False
 
+    def __lt__(self, other):
+        if self.last_modified < other.last_modified:
+            return True
+        return False
+        
     def __eq__(self, other):
         if self.name != other.name:
             return False
-        if self.path != other.path:
+        if self.relative_path != other.relative_path:
             return False
         if self.level != other.level:
             return False
         if self.hash != other.hash:
             return False
         if self.type != other.type:
+            return False
+        if self.last_modified != other.last_modified:
             return False
         return True
 
@@ -226,9 +286,22 @@ class FileObject(object):
 
         mode = os.stat(os.path.join(self.path)).st_mode
         if stat.S_ISDIR(mode):
-            self.type = 'FOLDER'
+            self.type = FOLDER
         else:
-            self.type = 'FILE'
+            self.type = FILE
+
+
+def os_exists_dir(path):
+    return os.path.lexists(path)
+
+def os_empty_dir(path):
+    try:
+        to_ret = os.listdir(path)
+    except:
+        return True
+    if not to_ret:
+        return True
+    return False
 
 def os_mkdir(path):
     print "MKDIR: %s" % path
@@ -239,7 +312,6 @@ def os_mkdir(path):
         pass
 
 def create_file(path, name, content):
-    print "FOR FILE %s in path %s" % (name, path)
     try:
         os.makedirs(path) #First, directory
     except:
@@ -248,10 +320,12 @@ def create_file(path, name, content):
 
     try:
         #print "CREANDO %s" % name
+        #print "PATH %s NAME %s" % (path, name)
         desc = open(os.path.join(path,name), 'wb')
         desc.write(content)
         desc.close()
-    except:
+    except Exception, why:
+        #TODO Dump in log file
         print "Error saving file %s" % name
+        #print why
         pass
-    print "FIN"

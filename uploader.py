@@ -12,9 +12,9 @@ class UploaderMega(object):
         Constructor
         """
         self.mega = mega_library.Mega({'verbose':
-                                            settings.settings['mega_verbose']})
-        self.mega.login(email=settings.settings['mega_mail'],
-                            password=settings.settings['mega_passw'])
+                                            settings.Settings().get('mega_verbose')})
+        self.mega.login(email=settings.Settings().get('mega_mail'),
+                            password=settings.Settings().get('mega_passw'))
 
     def upload(self, path, filename):
         """
@@ -26,6 +26,10 @@ class UploaderMega(object):
         Return:
             Nothing
         """
+        #Previously, delete if exists
+        rem_filename = filename.split('/')[-1]
+        self.remove(path=path, filename=rem_filename)
+
         # Save in mega in folder 'path' with the original name
         folder = self.mega.find_path_descriptor(path)
         if not folder:
@@ -44,6 +48,9 @@ class UploaderMega(object):
             filename, string with the desire remote name
             raw, str with bytes
         """
+        #Previously, delete if exists
+        self.remove(path=path, filename=filename)
+        #Then...
         folder = self.mega.find_path_descriptor(path)
         if not folder:
             folder = self.mkdir(path)
@@ -55,19 +62,19 @@ class UploaderMega(object):
         #First, find file
         desc = self.get_file(path=path, filename=filename)
         if desc:
-            print path
-            print filename
-            print desc
-            self.mega.destroy(desc)
+            self.mega.destroy(desc[0])
             return True
         else:
             #print "FILE %s/%s NOT FOUND FOR DELETE" % (path, filename)
             return False
     def get_file(self, filename, path):
+        to_ret = None
         #Find parent
         parent_desc = self.mega.find_path_descriptor(path=path)
+        #print parent_desc
         #Find filename in parent
-        to_ret = self.mega.find(filename=filename, parent=parent_desc)
+        if parent_desc:
+            to_ret = self.mega.find(filename=filename, parent=parent_desc)
         return to_ret
 
     def get_user_info(self):
@@ -86,7 +93,7 @@ class UploaderMega(object):
         Return:
             dictionary with information about the folder
         """
-        return self.mega.find_folder(foldername)
+        return self.mega.find_folder(foldername, parent=self.mega.get_root_descriptor())
         
     def mkdir(self, dirname):
         """
@@ -115,10 +122,30 @@ class UploaderMega(object):
             return file_desc.read()
         return None
 
+    def get_content_by_path(self, path, filename):
+        """
+        Get the remote file content, given a path and a filename.
+        Params:
+            path, string with the remote path
+            filename, string with the remote filename.
+        Return:
+            string with the content
+        """
+        desc = self.get_file(filename, path)
+        return self.get_content(desc[0])
+        
     def get_content_descriptor(self, file_info):
+        """
+        Get a remote file descriptor (to read the content)
+        Params:
+            file, tuple with a complete file description 
+        Return:
+            File object, ready to read().
+        """
         return self.mega.download(file=file_info, in_descriptor=True)
 
     def exists_dir(self, dirname):
+        #deprecated, we have uploader.find_folder()
         """
         Check if a directory exists in mega
         Params:
