@@ -116,6 +116,8 @@ class Backup(object):
             self.upload_actual_fs_struct()
         else:
             print "UNKNOWN MODE, existing..."
+
+            
     def upload_all(self):
         """
         Upload a complete local FileSystem
@@ -160,7 +162,7 @@ class Backup(object):
         for file in remove_files:
             print "Removing file %s" % file
             status = self.uploader.remove(
-                path='%s/%s' % (settings.Settings().get('remote_folder'), #TODO changes for os.path.join
+                path='%s/%s' % (settings.Settings().get('remote_folder'),
                                 file.relative_path),
                 filename=file.name)
             if not status:
@@ -169,8 +171,25 @@ class Backup(object):
             #print file
 
         remove_folders = changes['removed_folders']
-        #TODO
+        for folder in remove_folders:
+            print "Removing folder %s" % folder
+            status = self.uploader.remove(
+            path='%s/%s' % (settings.Settings().get('remote_folder'), #TODO changes for os.path.join
+                            folder.relative_path),
+            filename=folder.name)
+            if not status:
+                #No se ha borrado correctamente
+                pass
 
+        new_folders = changes['new_folders']
+        for folder in new_folders:
+            print "Creating remote folder %s" % folder
+            remote_folder = '%s' % settings.Settings().get('remote_folder')
+            if folder.relative_path != '/':
+                remote_folder += '/%s' % folder.relative_path
+            remote_folder += '/%s' % folder.name
+            rem_desc = self.uploader.mkdir(remote_folder)
+        
         new_files = changes['new_files']
         for file in new_files:
             print "Uploading file %s" % file
@@ -178,22 +197,21 @@ class Backup(object):
                                 file.relative_path)
             rem_desc = self.uploader.upload(remote_folder, file.path)
 
-        new_folders = changes['new_folders']
-        for folder in new_folders:
-            print "Creating remote folder %s" % folder
-            print folder
-            remote_folder = '%s/%s' % (settings.Settings().get('remote_folder'),
-                                       folder.name)
-            rem_desc = self.uploader.mkdir(remote_folder)
-        
         to_download = changes['to_download']
         for file in to_download:
-            print "TO DOWNLOAD %s" % file
+            print "Download modified %s" % file
 
         to_upload = changes['to_upload']
         for file in to_upload:
-            print "TO UPLOAD %s" % file
-
+            print "Uploading modified %s" % file
+            """
+            remote_folder = '%s' % settings.Settings().get('remote_folder')
+            if file.relative_path != '/':
+                remote_folder += '/%s' % file.relative_path
+            #remote_folder += '/%s' % file.name
+            rem_desc = self.uploader.upload(path=remote_folder, 
+                                            filename=file.path)
+            """
 
     def upload_actual_fs_struct(self):
         self.actual_filesystem.dump_to_file('fs.dmp')
@@ -221,19 +239,27 @@ class Backup(object):
                 file.relative_path = ''
             
             if file.type == filesystem.FILE: #Else, folder
-                content = self.uploader.get_content(
-                                            remote_descriptor=file.remote_desc)
+                path = '%s/%s' % (settings.Settings().get('remote_folder'),
+                                     file.relative_path)
+                content = self.uploader.get_content_by_path(path=path,
+                                                        filename=file.name)
                 filesystem.create_file(
                         path=os.path.join(settings.Settings().get('sync_file'),
                                                             file.relative_path),
                         name=file.name, 
                         content=content)
-            
+            elif file.type == filesystem.FOLDER:
+                path = os.path.join(settings.Settings().get('sync_file'),
+                                     file.relative_path,
+                                     file.name)
+                filesystem.os_mkdir(path)
+                
     def visit_path(self):
         #Deprecated?
         """
         Visit path and create summary file in binary
         """
+        print "RUN backup@visit_path"
         level = 0
         for root, subfolders, files in os.walk(self.path):
             #print root

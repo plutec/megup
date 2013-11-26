@@ -497,8 +497,6 @@ class Mega(object):
         """
         #First, get complete definition
         file = self.get_file(remote_descriptor)
-        print "REMOTE_DESC"
-        print remote_descriptor
         if file:
             return self.download(file=file, in_descriptor=True)
         return None        

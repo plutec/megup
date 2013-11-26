@@ -27,7 +27,9 @@ class UploaderMega(object):
             Nothing
         """
         #Previously, delete if exists
-        self.remove(path=path, filename=filename)
+        rem_filename = filename.split('/')[-1]
+        self.remove(path=path, filename=rem_filename)
+
         # Save in mega in folder 'path' with the original name
         folder = self.mega.find_path_descriptor(path)
         if not folder:
@@ -120,7 +122,26 @@ class UploaderMega(object):
             return file_desc.read()
         return None
 
+    def get_content_by_path(self, path, filename):
+        """
+        Get the remote file content, given a path and a filename.
+        Params:
+            path, string with the remote path
+            filename, string with the remote filename.
+        Return:
+            string with the content
+        """
+        desc = self.get_file(filename, path)
+        return self.get_content(desc[0])
+        
     def get_content_descriptor(self, file_info):
+        """
+        Get a remote file descriptor (to read the content)
+        Params:
+            file, tuple with a complete file description 
+        Return:
+            File object, ready to read().
+        """
         return self.mega.download(file=file_info, in_descriptor=True)
 
     def exists_dir(self, dirname):

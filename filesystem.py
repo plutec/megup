@@ -23,12 +23,15 @@ class FileSystem(object):
         self.files = list() #Must be a tree
         self.path = initial_path
 
-    def _convert_to_relative_path(self, path):
-        to_ret = '/'
+    def _extract_relative_path(self, path):
+        to_ret = ''
         if path.find(self.path) == 0:
             to_ret = path[len(self.path):]
-        if to_ret == '':
-            to_ret = '/'
+        if not to_ret:
+            to_ret = ''
+        #elif to_ret[-1] != '/':
+        #    to_ret = '%s/' % to_ret
+
         return to_ret
     
     def generate(self):
@@ -39,7 +42,7 @@ class FileSystem(object):
             for file_name in files:
                 file_path = os.path.join(root, file_name) 
                 file_obj = FileObject(
-                        relative_path=self._convert_to_relative_path(root), 
+                        relative_path=self._extract_relative_path(root), 
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
@@ -49,18 +52,29 @@ class FileSystem(object):
                 file_path = os.path.join(root,subfolder)
                 #print "SUBFOLDER %s" % subfolder
                 file_obj = FileObject(
-                        relative_path=self._convert_to_relative_path(root), 
+                        relative_path=self._extract_relative_path(root), 
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
             level += 1
 
-    def find_by_path(self, path):
-        #Only one
+        print "ARBOL GENERADO"
         for file in self.files:
-            if path == file.path:
-                return file
-        return None
+            print file
+
+    def find_by_path(self, path, filetype=None):
+        #Several files
+        to_ret = list()
+        if filetype:
+            for file in self.files:
+                if path == file.relative_path and file.type == filetype:
+                    to_ret.append(file)
+        else:
+            for file in self.files:
+                if path == file.relative_path:
+                    to_ret.append(file)
+        
+        return to_ret[0] #TODO Fix
 
     def find_by_hash(self, hash):
         #Maybe more than one
@@ -98,9 +112,14 @@ def compare_fs(actual_fs, old_fs):
     to_ret['to_upload'] = list()
     to_ret['to_download'] = list()
 
+    #for file in old_fs.files:
+    #    print file
+    #print "FIN ARBOL ANTIGUO"
+    #return to_ret
     for file in old_fs.files:
-        res = actual_fs.find_by_path(file.path)
+        res = actual_fs.find_by_path(file.relative_path)
         if not res: #If path not found, removed.
+            print "NO EXISTE, eliminar! %s" % file
             if file.type == FOLDER:
                 to_ret['removed_folders'].append(file)
                 file.status = REMOVED
@@ -123,15 +142,15 @@ def compare_fs(actual_fs, old_fs):
                     #print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
             else: #If not has the same hash, which is the newest?
                 #Find by path
-                res = actual_fs.find_by_path(file.path)
+                res = actual_fs.find_by_path(file.relative_path)
                 if res:
                     file2 = None
-                    if file.path == res.path:
+                    if file.relative_path == res.relative_path:
                         file2 = res
                     if file2: #The same path, but different hash
-                        print "SAME PATH, DIFFERENT HASH"
-                        print file
-                        print file2
+                        #print "SAME PATH, DIFERENT HASHES"
+                        #print file
+                        #print file2
                         if file > file2:
                             file.status = NEWEST
                             file2.status = OLDEST
@@ -140,9 +159,9 @@ def compare_fs(actual_fs, old_fs):
                             file.status = OLDEST
                             file2.status = NEWEST
                             to_ret['to_upload'].append(file2)
-        else: #If is a folder
+        else: #If it is a folder
             if file.type == FOLDER:
-                res = actual_fs.find_by_path(file.path)
+                res = actual_fs.find_by_path(file.relative_path)
                 if res:
                     #print "FOLDER FOUND"
                     file.status = THE_SAME
@@ -192,6 +211,7 @@ def load_filesystem_descriptor(descriptor):
 class FileObject(object):
 
     path = None
+    relative_path = None
     name = None
     remote_desc = None
     level = None
@@ -235,7 +255,7 @@ class FileObject(object):
     def __eq__(self, other):
         if self.name != other.name:
             return False
-        if self.path != other.path:
+        if self.relative_path != other.relative_path:
             return False
         if self.level != other.level:
             return False
@@ -292,7 +312,6 @@ def os_mkdir(path):
         pass
 
 def create_file(path, name, content):
-    print "FOR FILE %s in path %s" % (name, path)
     try:
         os.makedirs(path) #First, directory
     except:
@@ -301,10 +320,12 @@ def create_file(path, name, content):
 
     try:
         #print "CREANDO %s" % name
+        #print "PATH %s NAME %s" % (path, name)
         desc = open(os.path.join(path,name), 'wb')
         desc.write(content)
         desc.close()
-    except:
+    except Exception, why:
+        #TODO Dump in log file
         print "Error saving file %s" % name
+        #print why
         pass
-    print "FIN"
