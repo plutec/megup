@@ -12,9 +12,9 @@ class UploaderMega(object):
         Constructor
         """
         self.mega = mega_library.Mega({'verbose':
-                                            settings.settings['mega_verbose']})
-        self.mega.login(email=settings.settings['mega_mail'],
-                            password=settings.settings['mega_passw'])
+                                            settings.get_config('global', 'mega_verbose')})
+        self.mega.login(email=settings.get_config('local', 'login_mail'),
+                            password=settings.get_config('local', 'login_password'))
 
     def upload(self, path, filename):
         """

@@ -14,7 +14,7 @@ def parsing_args():
     return args
 
 def main():
-    b = backup.Backup(settings.settings['sync_file'])
+    b = backup.Backup(settings.get_config('local', 'base_directory'))
     b.is_initial_backup()
     #b.remote_home_backup = True
     b.run()
