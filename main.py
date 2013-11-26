@@ -1,5 +1,4 @@
-import backup
-import settings
+from core import backup, settings
 import argparse
 
 def parsing_args():
@@ -15,7 +14,8 @@ def parsing_args():
     return args
 
 def main():
-    b = backup.Backup()
+
+    b = backup.Backup(settings.get_config('local', 'base_directory'))
     b.detect_mode()
     b.run()
     
