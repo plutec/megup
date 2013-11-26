@@ -1,3 +1,6 @@
+#Sublime project
+*.sublime-*
+
 *.py[cod]
 
 # Dumps files
