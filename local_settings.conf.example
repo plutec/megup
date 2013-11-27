@@ -1,4 +1,4 @@
 [local]
-login_mail = jkrst_@hotmail.com
-login_password = pepitogrillo
-base_directory = /home/antonio/syncpy/test_files_2/
+login_mail = mail@example.com
+login_password = mypassword
+base_directory = /home/user/local_path/

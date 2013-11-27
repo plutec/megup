@@ -1,9 +1,13 @@
 import hashlib
+#Externals
 import os
 import sys
 import stat
 import pickle
 import time
+
+#Internals
+from core.logger import log
 
 #Statics
 REMOVED = 0
@@ -58,9 +62,9 @@ class FileSystem(object):
                 self.files.append(file_obj)
             level += 1
 
-        print "ARBOL GENERADO"
+        log.debug("Tree generated")
         for file in self.files:
-            print file
+            log.debug(file)
 
     def find_by_path(self, path, filetype=None):
         #Several files
@@ -121,7 +125,7 @@ def compare_fs(actual_fs, old_fs):
     for file in old_fs.files:
         res = actual_fs.find_by_path(file.relative_path)
         if not res: #If path not found, removed.
-            print "NO EXISTE, eliminar! %s" % file
+            log.debug("NOT EXISTS, delete! %s" % file)
             if file.type == FOLDER:
                 to_ret['removed_folders'].append(file)
                 file.status = REMOVED
@@ -306,18 +310,18 @@ def os_empty_dir(path):
     return False
 
 def os_mkdir(path):
-    print "MKDIR: %s" % path
+    log.debug("MKDIR: %s" % path)
     try:
         os.makedirs(path)
     except:
-        print "Ya existe el directorio, pasando"
+        log.debug("Directory already exists, do nothing")
         pass
 
 def create_file(path, name, content):
     try:
         os.makedirs(path) #First, directory
     except:
-        print "Already exists, do nothing with dir %s" % path
+        log.debug("Already exists, do nothing with dir %s" % path)
         pass
 
     try:
@@ -327,7 +331,5 @@ def create_file(path, name, content):
         desc.write(content)
         desc.close()
     except Exception, why:
-        #TODO Dump in log file
-        print "Error saving file %s" % name
-        #print why
-        pass
+        log.critical("Error saving file %s. Reason %s" % (name, why))
+        
