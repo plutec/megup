@@ -38,10 +38,21 @@ class FileSystem(object):
 
         return to_ret
     
+    def calculate_level(self, absolute_path):
+        to_ret = 1
+        if absolute_path.find(self.path) == 0:
+            path = absolute_path[len(self.path):]
+        len_path = len(path.split('/'))
+        if path != '':
+            to_ret = len_path + 1
+        
+        return to_ret
+
     def generate(self):
-        level = 0
         #Using relative path
         for root, subfolders, files in os.walk(self.path):
+            #Calculate level
+            level = self.calculate_level(root)
             #For each files
             for file_name in files:
                 file_path = os.path.join(root, file_name) 
@@ -60,11 +71,10 @@ class FileSystem(object):
                         path=file_path, 
                         level=level)
                 self.files.append(file_obj)
-            level += 1
 
         log.debug("Tree generated")
-        for file in self.files:
-            log.debug(file)
+        #for file in self.files:
+        #    log.debug(file)
 
     def find_by_path(self, path, filetype=None):
         #Several files
@@ -77,10 +87,17 @@ class FileSystem(object):
             for file in self.files:
                 if path == file.relative_path:
                     to_ret.append(file)
-        if to_ret:
-            return to_ret[0] #TODO Fix
-        else:
-            None
+        return to_ret
+        
+    def find_by_path_name(self, path, name, filetype=None):
+        to_ret = list()
+        files = self.find_by_path(path=path, filetype=filetype)
+        for file in files:
+            if file.name == name:
+                to_ret.append(file)
+                #Only must be one, but not break...
+
+        return to_ret
 
     def find_by_hash(self, hash):
         #Maybe more than one
@@ -122,62 +139,80 @@ def compare_fs(actual_fs, old_fs):
     #    print file
     #print "FIN ARBOL ANTIGUO"
     #return to_ret
+    #Estados diferentes:
+    """
+    - Folders: 
+        - New, OK
+        - Deleted, OK
+        - The same, OK
+    - Ficheros: 
+        - New, OK
+        - Changed, OK
+        - Deleted, OK
+        - The same, OK
+
+    """
     for file in old_fs.files:
-        res = actual_fs.find_by_path(file.relative_path)
-        if not res: #If path not found, removed.
-            log.debug("NOT EXISTS, delete! %s" % file)
-            if file.type == FOLDER:
+        if file.type == FOLDER:
+            #Find by path only
+            #print "CARPETA %s" % file
+            res = actual_fs.find_by_path_name(path=file.relative_path, 
+                                              name=file.name,
+                                              filetype=FOLDER)
+            #print res
+            if res:
+                #print "RES %s" % res[0]
+                for folder in res:
+                    if file == folder:
+                        #print "Encontrada"
+                        file.status = THE_SAME
+                        folder.status = THE_SAME
+            else: #Not res
+                file.status = REMOVED
                 to_ret['removed_folders'].append(file)
-                file.status = REMOVED
-            elif file.type == FILE:
-                to_ret['removed_files'].append(file)
-                file.status = REMOVED
-        elif file.hash: #If is a file
-            res = actual_fs.find_by_hash(file.hash)
-            if res: #If has the same hash
-                file2 = None
-                for file_it in res:
-                    if file == file_it:
-                        file2 = file_it
-                        break
-                if file2: #The same file, all right
+                
+        elif file.type == FILE:
+            #Find by hash/path
+            res_hash = actual_fs.find_by_hash(file.hash)
+            found = False
+            #If hash is the same and path too, it's the same file
+            for file2 in res_hash:
+                if file2.relative_path == file.relative_path:
                     file.status = THE_SAME
                     file2.status = THE_SAME
-                else: #Maybe changed?
-                    pass
-                    #print "NOT FOUND, pero hay uno con el mismo hash, puede ser RENOMBRAMIENTO"
-            else: #If not has the same hash, which is the newest?
-                #Find by path
-                res = actual_fs.find_by_path(file.relative_path)
-                if res:
-                    file2 = None
-                    if file.relative_path == res.relative_path:
-                        file2 = res
-                    if file2: #The same path, but different hash
-                        #print "SAME PATH, DIFERENT HASHES"
-                        #print file
-                        #print file2
-                        if file > file2:
-                            file.status = NEWEST
-                            file2.status = OLDEST
-                            to_ret['to_download'].append(file)
-                        elif file < file2:
-                            file.status = OLDEST
-                            file2.status = NEWEST
-                            to_ret['to_upload'].append(file2)
-        else: #If it is a folder
-            if file.type == FOLDER:
-                res = actual_fs.find_by_path(file.relative_path)
-                if res:
-                    #print "FOLDER FOUND"
-                    file.status = THE_SAME
-                    res.status = THE_SAME
-                else:
-                    pass
-                    #print "FOLDER NOT FOUND AGAIN, NO DEBE SALIR"
+                    found = True
+                    #break
+            if not found: #Not the same hash, maybe change or deleted
+                #Find by path/name
+                res_path = actual_fs.find_by_path_name(
+                                                    path=file.relative_path,
+                                                    name=file.name,
+                                                    filetype=FILE)
+                if res_path:
+                    if len(res_path) > 1:
+                        log.critical(
+                               "More than one file with the same path/name")
+                    #File changed
+                    found = False
+                    for file2 in res_path:
+                        if file.name == file2.name: #Changed content
+                            if file > file2:
+                                file.status = NEWEST
+                                file2.status = OLDEST
+                                to_ret['to_download'].append(file)
+                            elif file < file2:
+                                file.status = OLDEST
+                                file2.status = NEWEST
+                                to_ret['to_upload'].append(file2)
+                            found = True
+                            #break
 
+                if not found:
+                    #Removed
+                    file.status = REMOVED
+                    to_ret['removed_files'].append(file)            
 
-                #print "ELIMINADO %s" % file
+    #For not marked in previous loop
     for file in actual_fs.files:
         if not hasattr(file, 'status'):
             file.status = NEW
@@ -269,8 +304,8 @@ class FileObject(object):
             return False
         if self.type != other.type:
             return False
-        if self.last_modified != other.last_modified:
-            return False
+        #if self.last_modified != other.last_modified:
+        #    return False
         return True
 
     def calcule_hash(self):
