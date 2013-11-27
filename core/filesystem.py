@@ -135,23 +135,6 @@ def compare_fs(actual_fs, old_fs):
     to_ret['to_upload'] = list()
     to_ret['to_download'] = list()
 
-    #for file in old_fs.files:
-    #    print file
-    #print "FIN ARBOL ANTIGUO"
-    #return to_ret
-    #Estados diferentes:
-    """
-    - Folders: 
-        - New, OK
-        - Deleted, OK
-        - The same, OK
-    - Ficheros: 
-        - New, OK
-        - Changed, OK
-        - Deleted, OK
-        - The same, OK
-
-    """
     for file in old_fs.files:
         if file.type == FOLDER:
             #Find by path only
