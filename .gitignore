@@ -11,7 +11,7 @@
 # *.so
 
 # Settings
-local_settings.py
+local_settings.conf
 
 # Packages
 *.egg

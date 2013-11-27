@@ -18,10 +18,7 @@ def main():
     b = backup.Backup(settings.get_config('local', 'base_directory'))
     b.detect_mode()
     b.run()
-    
 
-    #b.is_initial_backup()
-    #b.remote_home_backup = True
 
 if __name__ == '__main__':
     options = parsing_args()

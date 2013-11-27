@@ -14,7 +14,11 @@ def get_config(section, key):
                                        os.path.pardir)
         with open(os.path.join(project_basedir, 'settings.conf'), 'r') as f:
             _config.readfp(f)
-
+        try:
+            with open(os.path.join(project_basedir, 'local_settings.conf'), 'r') as f:
+                _config.readfp(f)
+        except:
+            pass
     return _config.get(section, key)
 
 
