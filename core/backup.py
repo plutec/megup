@@ -205,6 +205,16 @@ class Backup(object):
         to_download = changes['to_download']
         for file in to_download:
             log.debug("Download modified %s" % file)
+            path = '%s/%s' % (settings.get_config('remote', 'folder'),
+                                                        file.relative_path)
+            content = self.uploader.get_content_by_path(path=path,
+                                                        filename=file.name)
+            filesystem.create_file(
+                    path=os.path.join(
+                           self.backup_path,
+                           file.relative_path),
+                    name=file.name, 
+                    content=content)
         
         new_files = changes['to_upload']
         for file in new_files:
@@ -243,7 +253,7 @@ class Backup(object):
                 path = '%s/%s' % (settings.get_config('remote', 'folder'),
                                      file.relative_path)
                 content = self.uploader.get_content_by_path(path=path,
-                                                        filename=file.name)
+                                                            filename=file.name)
                 filesystem.create_file(
                         path=os.path.join(
                                self.backup_path,
