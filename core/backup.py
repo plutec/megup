@@ -60,6 +60,8 @@ class Backup(object):
             log.debug("UNKNOWN MODE 3")
             self.unknown_mode = True
         elif not remote and not summary and empty_dir: #(110)
+            log.critical("Local directory doesn't exist and remote neither")
+            print "Local directory doesn't exist & remote neither, existing..."
             log.debug("UNKNOWN MODE 4")
             self.unknown_mode = True
         elif not remote and not summary and not empty_dir: #(111)
@@ -78,22 +80,22 @@ class Backup(object):
         if self.initial_backup_mode:
             log.info("INITIAL BACKUP MODE")
 
-            log.debug("0 - PREPARA BACKUP")
+            log.debug("0 - READY BACKUP")
             self.prepare_to_init_backup()
 
-            log.debug("2 - GENERA ACTUAL FS")
+            log.debug("2 - GENERATE ACTUAL FS")
             self.actual_filesystem.generate()
 
             log.debug("5.5 - UPLOAD ALL LOCAL FS")
             self.upload_all()
 
-            log.debug("6 - ACTUALIZA FS REMOTO")
+            log.debug("6 - UPDATE REMOTE FS")
             self.upload_actual_fs_struct()
 
         elif self.remote_home_mode:
             log.info("REMOTE_HOME MODE")
 
-            log.debug(("1 - LOAD REMOTE FS")
+            log.debug("1 - LOAD REMOTE FS")
             self.get_remote_fs_struct()
             log.debug("2 - SYNC REMOTE HOME")
             self.sync_remote_home()
@@ -103,18 +105,17 @@ class Backup(object):
             log.debug("1 - LOAD REMOTE FS")
             self.get_remote_fs_struct()
 
-            log.debug("2 - GENERA ACTUAL FS")
+            log.debug("2 - GENERATE ACTUAL FS")
             self.actual_filesystem.generate()
 
-            log.debug("3,4 - CALCULA CAMBIOS")
-            #print ('*'*80)
+            log.debug("3,4 - CALCULATE CHANGES")
             changes = filesystem.compare_fs(actual_fs=self.actual_filesystem,
                                             old_fs=self.remote_filesystem)
      
-            log.debug("5 - APLICA DIFERENCIAS (BORRA Y SUBE NUEVOS)")
+            log.debug("5 - APPLY DIFERENCES (DELETE/DOWNLOAD AND UPLOAD)")
             self.process_changes_in_remote(changes)
         
-            log.debug("6 - ACTUALIZA FS REMOTO")
+            log.debug("6 - UPDATE REMOTE FS")
             self.upload_actual_fs_struct()
         else:
             log.critical("UNKNOWN MODE, existing...")
@@ -160,7 +161,7 @@ class Backup(object):
         This method is used to changes changes in Mega (synchronize).
         """
 
-        print "PROCESANDO CAMBIOS EN REMOTO"
+        log.debug("Processing changes in remote")
         
         remove_files = changes['removed_files']
         for file in remove_files:
@@ -169,10 +170,10 @@ class Backup(object):
                 path='%s/%s' % (settings.get_config('remote', 'folder'),
                                 file.relative_path),
                 filename=file.name)
+
             if not status:
-                pass
-                #print "ERROR AL ELIMINAR ARCHIVO %s" % file
-            #print file
+                log.error("ERROR DELETING REMOTE FILE %s" % file)
+
 
         remove_folders = changes['removed_folders']
         for folder in remove_folders:
@@ -184,6 +185,15 @@ class Backup(object):
             if not status:
                 log.error("Folder not deleted correctly in remote %s" % folder)
 
+        new_folders = changes['new_folders']
+        for folder in new_folders:
+            log.debug("Creating remote folder %s" % folder)
+            remote_folder = '%s/%s/%s' % (
+                                        settings.get_config('remote', 'folder'), 
+                                        folder.relative_path,
+                                        folder.name)
+            rem_desc = self.uploader.mkdir(remote_folder)
+        
         new_files = changes['new_files']
         for file in new_files:
             log.debug("New file %s" % file)
@@ -192,38 +202,17 @@ class Backup(object):
             rem_desc = self.uploader.upload(remote_folder, file.path)
 
 
-        new_folders = changes['new_folders']
-        for folder in new_folders:
-            log.debug("Creating remote folder %s" % folder)
-            remote_folder = '%s/%s/%s' % (
-                                        settings.get_config('remote', 'folder'), 
-                                        folder.relative_path,
-                                        folder.name)
-
-            rem_desc = self.uploader.mkdir(remote_folder)
+        to_download = changes['to_download']
+        for file in to_download:
+            log.debug("Download modified %s" % file)
         
-        new_files = changes['new_files']
+        new_files = changes['to_upload']
         for file in new_files:
             log.debug("Uploading file %s" % file)
             remote_folder = '%s/%s' % (settings.get_config('remote', 'folder'),
                                 file.relative_path)
             rem_desc = self.uploader.upload(remote_folder, file.path)
 
-        to_download = changes['to_download']
-        for file in to_download:
-            log.debug("Download modified %s" % file)
-
-        to_upload = changes['to_upload']
-        for file in to_upload:
-            log.debug("Uploading modified %s" % file)
-            """
-            remote_folder = '%s' % settings.Settings().get('remote_folder')
-            if file.relative_path != '/':
-                remote_folder += '/%s' % file.relative_path
-            #remote_folder += '/%s' % file.name
-            rem_desc = self.uploader.upload(path=remote_folder, 
-                                            filename=file.path)
-            """
 
     def upload_actual_fs_struct(self):
         self.actual_filesystem.dump_to_file('fs.dmp')

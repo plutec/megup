@@ -1,4 +1,10 @@
+
+#Externals
+import sys
+
+#Internals
 from core import settings
+from core.logger import log
 import mega as mega_library
 
 class UploaderMega(object):
@@ -13,8 +19,14 @@ class UploaderMega(object):
         """
         self.mega = mega_library.Mega({'verbose':
                                  settings.get_config('global', 'mega_verbose')})
-        self.mega.login(email=settings.get_config('local', 'login_mail'),
+        try:
+            self.mega.login(
+                        email=settings.get_config('local', 'login_mail'),
                         password=settings.get_config('local', 'login_password'))
+        except:
+            log.critical("Impossible connect to Mega server")
+            print "Impossible connect to Mega server"
+            sys.exit()
 
 
     def upload(self, path, filename):
@@ -107,13 +119,14 @@ class UploaderMega(object):
         folders = dirname.split('/')
         parent_desc = self.mega.get_root_descriptor()
         for folder in folders:
-            #Exists folder with this parent?
-            exists = self.mega.find_folder(folder, parent=parent_desc)
-            if not exists:
-                data = self.mega.create_folder(folder, parent_desc)
-                parent_desc = data['f'][0]['h']
-            else:
-                parent_desc = exists[0]
+            if folder != '':
+                #Exists folder with this parent?
+                exists = self.mega.find_folder(folder, parent=parent_desc)
+                if not exists:
+                    data = self.mega.create_folder(folder, parent_desc)
+                    parent_desc = data['f'][0]['h']
+                else:
+                    parent_desc = exists[0]
         return parent_desc
 
     def get_content(self, remote_descriptor):
