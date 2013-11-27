@@ -1,20 +1,20 @@
-import settings
-import uploader
+from core import settings, uploader, filesystem
 import os
-import filesystem
+
 
 class Backup(object):
     """
     Class used to make a backup, in other words, the "kernel".
     """
-    def __init__(self):
+    def __init__(self, backup_path):
         """
         Constructor. It used settings file
         """
         self.recursive = True
+        self.backup_path = backup_path
         self.uploader = uploader.UploaderMega()
         self.actual_filesystem = filesystem.FileSystem(
-                              initial_path=settings.Settings().get('sync_file'))
+                              initial_path=backup_path)
         self.remote_filesystem = None
         # Modes
         self.initial_backup_mode = False
@@ -31,11 +31,12 @@ class Backup(object):
         #Resync, when in mega exists something and in home too.
         #Remote-home, when mega has content and local folder is empty 
             #or doesn't exist.
-        remote = self.uploader.find_folder(settings.Settings().get('remote_folder'))
+        remote = self.uploader.find_folder(
+                                        settings.get_config('remote', 'folder'))
         summary = self.uploader.get_file(
-                                    filename=settings.Settings().get('summary_file'),
-                                    path=settings.Settings().get('remote_folder'))
-        empty_dir = filesystem.os_empty_dir(settings.Settings().get('sync_file'))
+                        filename=settings.get_config('remote','summary_file'),
+                        path=settings.get_config('remote', 'folder'))
+        empty_dir = filesystem.os_empty_dir(self.backup_path)
         
         if remote and summary and empty_dir: #(000)
             print "REMOTE HOME 1"
@@ -132,24 +133,26 @@ class Backup(object):
             if file.type == filesystem.FOLDER:
                 if file.relative_path == '/':
                     file.relative_path = ''
-                remote_folder = os.path.join(settings.Settings().get('remote_folder'),
-                                             file.relative_path,
-                                             file.name)
+                remote_folder = os.path.join(
+                                        settings.get_config('remote', 'folder'),
+                                        file.relative_path,
+                                        file.name)
 
                 rem_desc = self.uploader.mkdir(remote_folder)
                 file.remote_desc = rem_desc
             elif file.type == filesystem.FILE:
-                remote_folder = '%s/%s' % (settings.Settings().get('remote_folder'),
-                                           file.relative_path)
+                remote_folder = '%s/%s' % (
+                                        settings.get_config('remote', 'folder'), 
+                                        file.relative_path)
                 rem_desc = self.uploader.upload(remote_folder, file.path)
                 file.remote_desc = rem_desc
 
     def prepare_to_init_backup(self):
         """
-        This method is used to prepare remote folder (in Mega) to ake a backup
+        This method is used to prepare remote folder (in Mega) to make a backup
         """
+        self.uploader.mkdir(settings.get_config('remote', 'folder'))
 
-        self.uploader.mkdir(settings.Settings().get('remote_folder'))
 
     def process_changes_in_remote(self, changes):
         """
@@ -162,7 +165,7 @@ class Backup(object):
         for file in remove_files:
             print "Removing file %s" % file
             status = self.uploader.remove(
-                path='%s/%s' % (settings.Settings().get('remote_folder'),
+                path='%s/%s' % (settings.get_config('remote', 'folder'),
                                 file.relative_path),
                 filename=file.name)
             if not status:
@@ -174,26 +177,36 @@ class Backup(object):
         for folder in remove_folders:
             print "Removing folder %s" % folder
             status = self.uploader.remove(
-            path='%s/%s' % (settings.Settings().get('remote_folder'), #TODO changes for os.path.join
+            path='%s/%s' % (settings.get_config('remote', 'folder'),
                             folder.relative_path),
             filename=folder.name)
             if not status:
                 #No se ha borrado correctamente
                 pass
 
+        print "Uploading new files..."
+        new_files = changes['new_files']
+        for file in new_files:
+            print file
+            remote_folder = '%s/%s' % (settings.get_config('remote', 'folder'), 
+                                       file.relative_path)
+            rem_desc = self.uploader.upload(remote_folder, file.path)
+
+
         new_folders = changes['new_folders']
         for folder in new_folders:
             print "Creating remote folder %s" % folder
-            remote_folder = '%s' % settings.Settings().get('remote_folder')
-            if folder.relative_path != '/':
-                remote_folder += '/%s' % folder.relative_path
-            remote_folder += '/%s' % folder.name
+            remote_folder = '%s/%s/%s' % (
+                                        settings.get_config('remote', 'folder'), 
+                                        folder.relative_path,
+                                        folder.name)
+
             rem_desc = self.uploader.mkdir(remote_folder)
         
         new_files = changes['new_files']
         for file in new_files:
             print "Uploading file %s" % file
-            remote_folder = '%s/%s' % (settings.Settings().get('remote_folder'),
+            remote_folder = '%s/%s' % (settings.get_config('remote', 'folder'),
                                 file.relative_path)
             rem_desc = self.uploader.upload(remote_folder, file.path)
 
@@ -217,14 +230,14 @@ class Backup(object):
         self.actual_filesystem.dump_to_file('fs.dmp')
         
         rem_desc = self.uploader.upload_raw(
-                                    path=settings.Settings().get('remote_folder'),
-                                    filename=settings.Settings().get('summary_file'),
-                                    raw=self.actual_filesystem.get_dump())
+                        path=settings.get_config('remote', 'folder'),
+                        filename=settings.get_config('remote', 'summary_file'),
+                        raw=self.actual_filesystem.get_dump())
         return rem_desc
     def get_remote_fs_struct(self):
         file_desc = self.uploader.get_file(
-                                filename=settings.Settings().get('summary_file'),
-                                path=settings.Settings().get('remote_folder'))
+                        filename=settings.get_config('remote', 'summary_file'), 
+                        path=settings.get_config('remote', 'folder'))
 
         fs_descriptor = self.uploader.get_content_descriptor(
                                                         file_info=file_desc)
@@ -239,17 +252,18 @@ class Backup(object):
                 file.relative_path = ''
             
             if file.type == filesystem.FILE: #Else, folder
-                path = '%s/%s' % (settings.Settings().get('remote_folder'),
+                path = '%s/%s' % (settings.get_config('remote', 'folder'),
                                      file.relative_path)
                 content = self.uploader.get_content_by_path(path=path,
                                                         filename=file.name)
                 filesystem.create_file(
-                        path=os.path.join(settings.Settings().get('sync_file'),
-                                                            file.relative_path),
+                        path=os.path.join(
+                               self.backup_path,
+                               file.relative_path),
                         name=file.name, 
                         content=content)
             elif file.type == filesystem.FOLDER:
-                path = os.path.join(settings.Settings().get('sync_file'),
+                path = os.path.join(self.backup_path,
                                      file.relative_path,
                                      file.name)
                 filesystem.os_mkdir(path)
@@ -264,7 +278,7 @@ class Backup(object):
         for root, subfolders, files in os.walk(self.path):
             #print root
             if not level:
-                actual_remote_folder = settings.Settings().get('remote_folder')
+                actual_remote_folder = settings.get_config('remote', 'folder')
             else:
                 actual_remote_folder = '%s/%s' % \
                     (actual_remote_folder, root.split('/')[-1])

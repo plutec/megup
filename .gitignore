@@ -1,3 +1,6 @@
+#Sublime project
+*.sublime-*
+
 *.py[cod]
 
 # Dumps files
@@ -8,7 +11,7 @@
 # *.so
 
 # Settings
-local_settings.py
+local_settings.conf
 
 # Packages
 *.egg

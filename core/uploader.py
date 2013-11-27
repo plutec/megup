@@ -1,4 +1,4 @@
-import settings
+from core import settings
 import mega as mega_library
 
 class UploaderMega(object):
@@ -12,9 +12,10 @@ class UploaderMega(object):
         Constructor
         """
         self.mega = mega_library.Mega({'verbose':
-                                            settings.Settings().get('mega_verbose')})
-        self.mega.login(email=settings.Settings().get('mega_mail'),
-                            password=settings.Settings().get('mega_passw'))
+                                 settings.get_config('global', 'mega_verbose')})
+        self.mega.login(email=settings.get_config('local', 'login_mail'),
+                        password=settings.get_config('local', 'login_password'))
+
 
     def upload(self, path, filename):
         """

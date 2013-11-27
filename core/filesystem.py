@@ -73,8 +73,10 @@ class FileSystem(object):
             for file in self.files:
                 if path == file.relative_path:
                     to_ret.append(file)
-        
-        return to_ret[0] #TODO Fix
+        if to_ret:
+            return to_ret[0] #TODO Fix
+        else:
+            None
 
     def find_by_hash(self, hash):
         #Maybe more than one
