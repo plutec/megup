@@ -1,4 +1,0 @@
-[local]
-login_mail = mail@example.com
-login_password = mypassword
-base_directory = /home/user/local_path/
