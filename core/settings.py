@@ -10,15 +10,16 @@ def get_config(section, key):
     global _config
     if not _config:
         _config = ConfigParser.SafeConfigParser()
-        project_basedir = os.path.join(os.path.dirname(__file__),
-                                       os.path.pardir)
-        with open(os.path.join(project_basedir, 'settings.conf'), 'r') as f:
+
+        config_file_path = os.environ.get('MEGUP_CONFIG_FILE', None)
+        if not config_file_path:
+            project_basedir = os.path.join(os.path.dirname(__file__),
+                                           os.path.pardir)
+            config_file_path = os.path.join(project_basedir, 'settings.conf')
+
+        with open(config_file_path, 'r') as f:
             _config.readfp(f)
-        try:
-            with open(os.path.join(project_basedir, 'local_settings.conf'), 'r') as f:
-                _config.readfp(f)
-        except:
-            pass
+
     return _config.get(section, key)
 
 
