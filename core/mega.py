@@ -109,7 +109,6 @@ class Mega(object):
             params=params,
             data=json.dumps(data),
             timeout=self.timeout)
-        #print req.url
         json_resp = json.loads(req.text)
 
         #if numeric error code response
@@ -285,7 +284,7 @@ class Mega(object):
         """
         Get file information, given a only a descriptor
         """
-        #TODO ahora mismo hace una peticion de todos los archivos. Mejorar
+        #TODO Now it does a petition with all files. This can be improve.
         files = self._api_request({'a': 'f', 'c': 1})
         to_ret = {}
         shared_keys = {}
@@ -543,18 +542,9 @@ class Mega(object):
             file_name = dest_filename
         else:
             file_name = attribs['n']
-        #print file_url
-        #retries = 4
-        #ok = False
-        #while not ok and retries:
-        #    try:
+        
         input_file = requests.get(file_url, stream=True, timeout=1).raw
-        #        ok = True
-        #    except:
-        #        ok = False
-        #        retries -= 1
-        #        print "RETRY %s" %retries
-        #print input_file
+        
         if dest_path is None:
             dest_path = ''
         else:
@@ -619,8 +609,6 @@ class Mega(object):
                 self.get_files()
             dest = self.root_id
         #request upload url, call 'u' method
-        #input_file = open(filename, 'rb')
-        #file_size = os.path.getsize(filename)
         file_size = len(raw)
         ul_url = self._api_request({'a': 'u', 's': file_size})['p']
 
@@ -638,7 +626,6 @@ class Mega(object):
         iv_str = a32_to_str([ul_key[4], ul_key[5], ul_key[4], ul_key[5]])
 
         for chunk_start, chunk_size in get_chunks(file_size):
-            #chunk = input_file.read(chunk_size)
             chunk = raw[:chunk_size]
             raw = raw[chunk_size:]
             upload_progress += len(chunk)
@@ -677,8 +664,7 @@ class Mega(object):
 
         if dest_filename is not None:
             attribs = {'n': dest_filename}
-        else:
-            #attribs = {'n': os.path.basename(filename)}
+        else:            
             attribs = {'n': raw_name}
 
         encrypt_attribs = base64_url_encode(encrypt_attr(attribs, ul_key[:4]))
@@ -692,9 +678,9 @@ class Mega(object):
                                  't': 0,
                                  'a': encrypt_attribs,
                                  'k': encrypted_key}]})
-        #close input file and return API msg
-        #input_file.close()
+        #return API msg
         return data
+        
     # UPLOAD
     def upload(self, filename, dest=None, dest_filename=None):
         #determine storage node
