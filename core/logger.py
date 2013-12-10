@@ -17,11 +17,12 @@ except:
     log_level = 5
 
 # Establising limits
-if log_level < 0:
-    log_level = 0
-elif log_level >= len(levels):
-    log_level = len(levels) - 1
+if log_level < 1:
+    log_level = 1
+elif log_level > len(levels):
+    log_level = len(levels)
 
+log_level -= 1
 
 log.setLevel(levels[log_level])
 
@@ -42,6 +43,5 @@ file_handler.setFormatter(formatter)
 stream_handler.setFormatter(formatter)
 
 # add the handlers to the logger
-
 log.addHandler(file_handler)
 log.addHandler(stream_handler)
