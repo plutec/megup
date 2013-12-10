@@ -18,7 +18,7 @@ class Mega(object):
     def __init__(self, options=None):
         self.schema = 'https'
         self.domain = 'mega.co.nz'
-        self.timeout = 160  # max time (secs) to wait for resp from api requests
+        self.timeout = 10  # max time (secs) to wait for resp from api requests
         self.sid = None
         self.sequence_num = random.randint(0, 0xFFFFFFFF)
         self.request_id = make_id(10)
